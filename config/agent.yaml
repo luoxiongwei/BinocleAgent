@@ -1,0 +1,19 @@
+# 阶段一共享配置。后续 Agent runner、工具和 API gateway 均从此文件读取。
+project_root: .
+runtime:
+  production_route: graph
+  planner_enabled: true   # 对账/证据异常允许 Agent 选择有限补充工具；失败时确定性回退
+paths:
+  fusion_qc: results/fuse_qc.json
+  detections: results/l1_smoke/l1_detections.json
+  scenes: results/l2_scene/l2_scene.json
+  rag_meta: results/rag_store_v2/meta.json
+  warnings: results/l3_warn/l3_warnings.json
+thresholds:
+  fusion_edge_align_min: 0.11    # 主阈值：>=0.11 放行（0.09~0.11 为 borderline_qc 审计标记带）
+  fusion_edge_align_hard_min: 0.09  # 硬底线：低于视为配准失败（低于随机错位对照 0.2079 的水平），必须人工
+  max_tool_retries: 1
+  human_review_confidence: 0.5
+api:
+  timeout_seconds: 120
+  temperature: 0

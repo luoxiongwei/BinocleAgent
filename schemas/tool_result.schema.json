@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ToolResult",
+  "type": "object",
+  "required": ["status", "data", "error", "trace", "confidence"],
+  "properties": {
+    "status": {"enum": ["ok", "review", "error"]},
+    "data": {"type": "object"},
+    "error": {"type": ["string", "null"]},
+    "trace": {"type": "array", "items": {"type": "object", "required": ["tool", "ts"]}},
+    "confidence": {"type": ["number", "null"], "minimum": 0, "maximum": 1}
+  },
+  "additionalProperties": false
+}

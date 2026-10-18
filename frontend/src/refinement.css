@@ -1,0 +1,32 @@
+/* 门面与工作区的第二轮视觉收束 */
+.landing-copy h1.landing-slogan{font-size:clamp(52px,7vw,94px);line-height:.98;margin:15px 0 20px;letter-spacing:-.06em}
+.landing-copy h2{font-size:clamp(22px,3vw,38px);line-height:1.2;margin:0 0 18px;color:#f7f9fc;letter-spacing:-.03em}
+.landing-copy h2:after{content:"";display:block;width:72px;height:3px;background:#f59e0b;margin-top:18px;border-radius:2px}
+.landing-copy .landing-lead{max-width:620px}
+.side-nav .nav-item{background:var(--surface);border:1px solid var(--line);border-radius:9px;margin:5px 0;min-height:46px}
+.side-nav .nav-item:hover{background:var(--surface-2);border-color:var(--line-strong)}
+.side-nav .nav-item.active{background:var(--surface-2);border-color:var(--line-strong)}
+.side-services{margin-top:auto}
+.task-mini-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--line)}
+.task-mini-row>div{display:flex;align-items:baseline;gap:12px;min-width:0}.task-mini-row b{font-size:17px}.task-mini-row .eyebrow{color:var(--accent)}
+.console-service-panel{display:none!important}
+.agent-task-archive{margin-bottom:var(--sp-4)}
+.online-archive-grid{display:grid;grid-template-columns:minmax(190px,.28fr) minmax(0,1fr);gap:var(--sp-4);align-items:start}
+.online-archive-grid .agent-task-archive{margin:0;grid-column:1}
+.online-archive-grid .online-task-detail{grid-column:2;grid-row:1 / span 2;margin:0;min-width:0}
+.online-task-detail .trace-row{min-width:0}
+@media(max-width:900px){.online-archive-grid{grid-template-columns:1fr}.online-archive-grid .agent-task-archive,.online-archive-grid .online-task-detail{grid-column:1;grid-row:auto}}
+.agent-task-row{width:100%;text-align:left;border:0;background:transparent;color:inherit;cursor:pointer}
+.agent-task-row:hover{background:var(--surface-2)}
+.agent-task-row .row-meta{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.chain,.chain-node,.chain-facts,.chain-detail,.clause-quote{min-width:0;max-width:100%;overflow-wrap:anywhere;word-break:break-word}
+.chain .tag-mono{display:inline-block;max-width:100%;white-space:normal;overflow-wrap:anywhere;word-break:break-word;vertical-align:top}
+.task-workspace{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:var(--sp-4) var(--sp-5)}
+.task-workspace>.section-head{margin-top:var(--sp-4);margin-bottom:var(--sp-2);padding-bottom:var(--sp-2);border-bottom:1px solid var(--line)}
+.task-workspace>.section-head:first-child{margin-top:0}
+.task-workspace>.panel{margin-bottom:8px;background:transparent;border:0;border-radius:0;box-shadow:none}
+@media(min-width:801px){.task-workspace{max-width:1180px;margin:0 auto}.task-workspace .panel-body{padding-top:12px;padding-bottom:12px}}
+/* 待机态舞台（2026-10-18 用户要求）：待机时上传表单垂直居中，避免顶部孤岛+下方留白；
+   进入流水线/有结果后回顶锚定，面积让给事件流与结果。100vh 扣顶栏(实测95)+app-content 上下 padding(32+48) */
+.task-stage.is-idle{min-height:calc(100vh - 175px);display:flex;flex-direction:column;justify-content:center}
+.task-idle-hint{margin:var(--sp-4) auto 0;max-width:60ch;text-align:center;font-size:var(--fs-small);color:var(--text-faint);line-height:1.7}

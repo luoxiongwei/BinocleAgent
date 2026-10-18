@@ -1,0 +1,25 @@
+{
+  "_说明": "API 统一配置模板。复制为 config.json 后填入自己的 key；config.json 含敏感信息，已列入 .gitignore，切勿随包/仓库分发。优先级：命令行参数 > config.json > 代码内置默认值。",
+  "vlm": {
+    "model_id": "deepseek-flash",
+    "api_base": "https://api.deepseek.com/v1",
+    "api_key": "sk-在这里填入你的VLM密钥",
+    "mode": "all"
+  },
+  "llm": {
+    "model_id": "deepseek-chat",
+    "api_base": "https://api.deepseek.com/v1",
+    "api_key": "sk-在这里填入你的LLM密钥",
+    "topk": 6,
+    "agentic": true,
+    "max_tool_rounds": 3
+  },
+  "rag": {
+    "dir": "results/rag_store_v2",
+    "recall_n": 20,
+    "rrf_k": 60,
+    "rerank_n": 10,
+    "reranker_id": "BAAI/bge-reranker-base",
+    "min_rerank": 0.2
+  }
+}

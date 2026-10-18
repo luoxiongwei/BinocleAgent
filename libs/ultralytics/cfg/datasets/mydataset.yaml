@@ -1,0 +1,15 @@
+# 直接修改下面的train/val/test即可，nc是类别数，names是各个类别的名字
+
+# Train/val/test sets as 1) dir: path/to/imgs, 2) file: path/to/imgs.txt, or 3) list: [path/to/imgs1, path/to/imgs2, ..]
+train: D:\桌面\YOLO+LM\GDYOLO升级\ultralyticsPro0312-YOLOv8\dataset\train   # train images (relative to 'path') 128 images
+val:  D:\桌面\YOLO+LM\GDYOLO升级\ultralyticsPro0312-YOLOv8\dataset\val  # test images (relative to 'path') 128 images
+test:  D:\桌面\YOLO+LM\GDYOLO升级\ultralyticsPro0312-YOLOv8\dataset\test
+# Classes
+nc: 5  # number of classes
+
+names:
+    0: C1
+    1: C2
+    2: C3
+    3: C4
+    4: C5

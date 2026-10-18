@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SceneResult",
+  "description": "L2 VLM 开放检测输出契约。真源 = scripts/vlm_judge.py 的 SYSTEM_PROMPT / USER_SCHEMA（2026-09-29 重写，对齐现行 prompt）。_meta 由 scripts/vlm_judge.py 追加，不属 VLM 契约。",
+  "type": "object",
+  "required": ["image_id", "scene", "targets"],
+  "additionalProperties": false,
+  "properties": {
+    "image_id": {
+      "type": "string",
+      "description": "图对标识（--pair-id 模式下为 pairNN，全量模式下为 HH 时间戳）"
+    },
+    "scene": {
+      "type": "object",
+      "required": ["dominant_state", "site_type"],
+      "additionalProperties": false,
+      "properties": {
+        "lighting": {"enum": ["白天", "黄昏", "夜间"]},
+        "rgb_visibility": {"enum": ["清晰", "过暗", "过曝"]},
+        "ir_quality": {"enum": ["良好", "一般", "差"]},
+        "dominant_state": {
+          "type": "string",
+          "description": "作业/工序的自由描述（不受固定类别限制）；无法判断才为「无明确作业」"
+        },
+        "dominant_state_basis": {"type": "string"},
+        "site_type": {"type": "string"},
+        "site_basis": {"type": "string"},
+        "place": {"enum": ["室内", "室外", "不确定"]},
+        "place_basis": {"type": "string"},
+        "work_height": {"enum": ["高空", "平地", "不确定"]},
+        "work_height_basis": {"type": "string"},
+        "env_protections": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "环境防护装置及状态（完好/缺失/不可见），无则空数组"
+        }
+      }
+    },
+    "targets": {
+      "type": "array",
+      "description": "VLM 自行枚举的全部目标，bbox_id 须为连续的 t1…tN",
+      "items": {
+        "type": "object",
+        "required": ["bbox_id", "type"],
+        "properties": {
+          "bbox_id": {"type": "string", "pattern": "^t[0-9]+$"},
+          "type": {"enum": ["工人", "机械", "塔吊"]},
+          "bbox_xyxy": {
+            "type": "array",
+            "items": {"type": "number"},
+            "minItems": 4,
+            "maxItems": 4
+          },
+          "action": {
+            "type": "string",
+            "description": "工人必须写明作用的客体；机械/塔吊填运行状态"
+          },
+          "equipment_state": {"$ref": "#/$defs/equipmentState"},
+          "ppe": {
+            "type": "object",
+            "description": "个体穿戴（helmet/vest/gloves/safety_shoes 等），每项为 boolFlag",
+            "additionalProperties": {"$ref": "#/$defs/boolFlag"}
+          },
+          "body_equipment": {
+            "type": "object",
+            "description": "个体外部装备（safety_belt/safety_rope 等）+ other 数组",
+            "properties": {
+              "other": {"type": "array", "items": {"type": "string"}}
+            },
+            "additionalProperties": {"$ref": "#/$defs/boolFlag"}
+          },
+          "state_attrs": {
+            "type": "object",
+            "description": "位置/危险区事实（in_crane_load_zone / in_machinery_radius）",
+            "additionalProperties": {"$ref": "#/$defs/boolFlag"}
+          },
+          "occluded": {"type": "boolean"},
+          "confirmed_by": {"enum": ["rgb", "ir", "both"]},
+          "unverified_by_yolo": {
+            "type": "boolean",
+            "description": "由 reconcile 追加：该目标未获 GDYOLO 证实（vlm_only）"
+          },
+          "_meta_src": {
+            "type": "string",
+            "description": "由 reconcile 追加：目标来源标记（如 yolo_only_supplement）"
+          }
+        }
+      }
+    },
+    "spatial_relations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["subject", "object", "relation"],
+        "additionalProperties": false,
+        "properties": {
+          "subject": {"type": "string"},
+          "object": {"type": "string"},
+          "relation": {"type": "string"},
+          "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+        }
+      }
+    },
+    "candidate_violations": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "描述性短语，不带等级/条款"
+    },
+    "uncertainty": {"type": "string"},
+    "_meta": {
+      "type": "object",
+      "description": "由 scripts/vlm_judge.py 追加：parsing_error / schema_ok / recheck / reconciliation / supplement 等；非 VLM 产出，字段自由"
+    }
+  },
+  "$defs": {
+    "boolFlag": {
+      "type": "object",
+      "required": ["value", "confidence"],
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "type": ["boolean", "null"],
+          "description": "只允许 true/false/null。模型偶尔写成描述串（如「黄色安全帽」）——那是格式越界，会被契约校验拦下；下游 tools/rule_engine._field_flag 对非布尔值按 unknown 处理，绝不当作「已就位」"
+        },
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "color": {
+          "type": ["string", "null"],
+          "description": "可选：颜色/外观证据（VLM 有时附带，如「深色鞋面/白色鞋底」）。属允许的附加说明，不参与三态判定"
+        }
+      }
+    },
+    "equipmentState": {
+      "type": "object",
+      "required": ["value", "confidence"],
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "enum": ["运行中", "静止", "不确定", null],
+          "description": "null 与「不确定」等价：SYSTEM_PROMPT 规则 4 要求不确定时置 null，消费方 tools/rule_engine._equipment_state:100 对非『运行中/静止』（含 null）一律按 uncertain 处理。仅机械/塔吊参与聚合，工人上的 equipment_state 不参与。"
+        },
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    }
+  }
+}

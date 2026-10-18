@@ -1,0 +1,30 @@
+# =============================================================
+# L1 检测数据配置（3 类 · 与 best.pt 训练一致的现役版本）
+# 关联权重: ../data/weights/best.pt（已随 upgrade_work 内置，独立可运行）
+# 确认证据: predict2 / split 全部标注类别索引 = [0..2]  => nc=3
+# 本文件仅供将来重训练参考，运行期管线不读取（config_loader 只读 agent.yaml）。
+# 路径均为相对本文件（config/）的相对路径，不再依赖本机绝对路径。
+# =============================================================
+
+# 训练/验证/测试集不随本升级工作区存储（推理不依赖）。原始数据集由
+# 原 GDYOLO 项目保有（相对路径基于 config/ 出发，需该项目与本工作区同级）：
+#   ../../ultralyticsPro0312-YOLOv8/ultralytics/data/{train,val,test}
+# 需重新训练时任选其一：① 保持该相对布局；② 改指向自己机器上的数据集副本。
+#   train 4149 / val 1186 / test 593
+train: ../../ultralyticsPro0312-YOLOv8/ultralytics/data/train/images
+val:   ../../ultralyticsPro0312-YOLOv8/ultralytics/data/val/images
+test:  ../../ultralyticsPro0312-YOLOv8/ultralytics/data/test/images
+
+# RGB+IR 图对真身（30 对，C2 冒烟用，已内置；相对 config/ 出发）
+# 注意：data/rgbt 不随 git 分发（见 .gitignore），他机导入自己的图对后
+# 需将此处改指向其实际目录（导入路径见 README「导入自己的图对」）。
+pair_source:
+  visible: ../rgbt/visible
+  thermal: ../rgbt/thermal
+
+# Classes（3 类，与权重一致）
+nc: 3
+names:
+  0: worker
+  1: construction machinery
+  2: tower crane

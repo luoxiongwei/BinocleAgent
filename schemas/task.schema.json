@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SafetyInspectionTask",
+  "type": "object",
+  "required": ["task_id", "input", "workflow", "audit"],
+  "properties": {
+    "task_id": {"type": "string", "minLength": 1},
+    "task_type": {"type": "string"},
+    "input": {"type": "object"},
+    "quality": {"type": "object"},
+    "detections": {"type": "object"},
+    "scene": {"type": "object"},
+    "relations": {"type": "array"},
+    "regulations": {"oneOf": [{"type": "array"}, {"type": "object"}]},
+    "evidence_check": {"type": "object"},
+    "risk_assessment": {"type": "object"},
+    "report": {"type": "object"},
+    "workflow": {
+      "type": "object",
+      "required": ["current_step", "completed_steps", "retry_count", "need_human_review", "status"],
+      "properties": {
+        "current_step": {"type": "string"},
+        "completed_steps": {"type": "array", "items": {"type": "string"}},
+        "retry_count": {"type": "integer", "minimum": 0},
+        "need_human_review": {"type": "boolean"},
+        "status": {"enum": ["pending", "running", "completed", "needs_human_review", "failed"]}
+      }
+    },
+    "audit": {
+      "type": "object",
+      "required": ["tool_calls", "created_at", "updated_at"],
+      "properties": {
+        "tool_calls": {"type": "array", "items": {"type": "object"}},
+        "created_at": {"type": "string"},
+        "updated_at": {"type": "string"}
+      }
+    }
+  }
+}

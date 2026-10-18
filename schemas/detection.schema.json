@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DetectionResult",
+  "type": "object",
+  "required": ["detections"],
+  "properties": {
+    "detections": {"type": "object"},
+    "meta": {"type": "object"}
+  }
+}

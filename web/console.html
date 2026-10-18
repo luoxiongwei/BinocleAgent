@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>施工安全巡检 Agent · 审阅控制台</title>
+<style>
+:root{
+  --bg:#f5f6f8; --card:#fff; --border:#e3e6ea; --border-2:#eef0f3;
+  --text:#1f2937; --muted:#6b7280; --faint:#9ca3af;
+  --primary:#2563eb; --primary-bg:#eff6ff; --primary-bd:#bfdbfe;
+  --green:#16a34a; --green-bg:#f0fdf4; --green-bd:#bbf7d0;
+  --amber:#d97706; --amber-bg:#fffbeb; --amber-bd:#fde68a;
+  --red:#dc2626;   --red-bg:#fef2f2;   --red-bd:#fecaca;
+  --violet:#7c3aed; --violet-bg:#f5f3ff; --violet-bd:#ddd6fe;
+  --slate:#475569; --slate-bg:#f1f5f9; --slate-bd:#e2e8f0;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Courier New",monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font-size:13px;
+  font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,Arial,sans-serif;
+  display:flex;overflow:hidden}
+a{color:var(--primary);text-decoration:none}
+code,kbd{font-family:var(--mono);font-size:12px}
+
+/* ---------- 左栏 ---------- */
+nav{width:232px;flex-shrink:0;background:var(--card);border-right:1px solid var(--border);
+  display:flex;flex-direction:column}
+.brand{padding:16px 18px;border-bottom:1px solid var(--border)}
+.brand h1{margin:0;font-size:15px;font-weight:700;line-height:1.3}
+.brand p{margin:4px 0 0;font-size:11px;color:var(--faint)}
+.nav-item{padding:10px 18px;font-size:13px;color:var(--muted);cursor:pointer;
+  border-left:3px solid transparent;user-select:none}
+.nav-item:hover{background:#f0f3f8;color:var(--primary)}
+.nav-item.active{background:var(--primary-bg);color:var(--primary);
+  border-left-color:var(--primary);font-weight:600}
+.nav-sec{padding:12px 18px 6px;font-size:11px;color:var(--faint);font-weight:600;letter-spacing:.4px}
+.nav-foot{margin-top:auto;padding:12px 18px;border-top:1px solid var(--border);font-size:11px;color:var(--faint)}
+.nav-foot b{display:block;font-size:11px;color:var(--muted);font-weight:600;margin-bottom:2px}
+
+/* ---------- 主区 ---------- */
+main{flex:1;overflow:auto;padding:20px 24px 60px}
+.view{display:none}
+.view.active{display:block}
+.vhead{display:flex;align-items:baseline;gap:10px;margin:0 0 14px}
+.vhead h2{margin:0;font-size:17px;font-weight:700}
+.vhead .sub{font-size:12px;color:var(--muted)}
+.row-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+
+/* ---------- 卡片 ---------- */
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;
+  padding:14px 16px;margin-bottom:14px}
+.card>h3{margin:0 0 10px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px}
+.card>h3 .chip{margin-left:auto;font-weight:500}
+.grid{display:grid;gap:12px}
+.g-kpi{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
+.g-2{grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
+
+/* ---------- KPI ---------- */
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.kpi .k{font-size:11px;color:var(--muted);margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.kpi .v{font-family:var(--mono);font-size:22px;font-weight:600;line-height:1.1}
+.kpi .n{font-size:11px;color:var(--faint);margin-top:4px}
+.kpi.warn{border-color:var(--red-bd);background:var(--red-bg)}
+.kpi.warn .v{color:var(--red)}
+.kpi.ok{border-color:var(--green-bd);background:var(--green-bg)}
+.kpi.ok .v{color:var(--green)}
+
+/* ---------- 徽标 ---------- */
+.badge{display:inline-block;padding:1px 7px;border-radius:999px;font-size:11px;
+  font-weight:600;border:1px solid transparent;white-space:nowrap}
+.b-green{background:var(--green-bg);color:var(--green);border-color:var(--green-bd)}
+.b-red{background:var(--red-bg);color:var(--red);border-color:var(--red-bd)}
+.b-amber{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-bd)}
+.b-blue{background:var(--primary-bg);color:var(--primary);border-color:var(--primary-bd)}
+.b-violet{background:var(--violet-bg);color:var(--violet);border-color:var(--violet-bd)}
+.b-gray{background:var(--slate-bg);color:var(--slate);border-color:var(--slate-bd)}
+.b-mark{width:22px;text-align:center;font-family:var(--mono);font-weight:700;padding:1px 0}
+
+/* ---------- 表格 ---------- */
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;font-weight:600;color:var(--muted);font-size:11px;
+  padding:7px 8px;border-bottom:1px solid var(--border);white-space:nowrap;background:#fafbfc}
+td{padding:7px 8px;border-bottom:1px solid var(--border-2);vertical-align:top}
+tbody tr:hover{background:#f8fafc}
+tr.clickable{cursor:pointer}
+td.num,th.num{text-align:right;font-family:var(--mono)}
+td.mono{font-family:var(--mono)}
+.tbl-wrap{overflow-x:auto}
+.empty{padding:26px;text-align:center;color:var(--faint);font-size:12px}
+.empty-err{color:var(--red)}
+
+/* ---------- 按钮/控件 ---------- */
+button{font:inherit;font-size:12px;padding:5px 12px;border-radius:7px;cursor:pointer;
+  border:1px solid var(--border);background:var(--card);color:var(--text)}
+button:hover{background:#f3f5f8;border-color:#cfd6df}
+button.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+button.primary:hover{background:#1d4ed8}
+button.ghost{border-color:transparent;background:transparent;color:var(--primary);padding:3px 6px}
+button.ghost:hover{background:var(--primary-bg)}
+button:disabled{opacity:.5;cursor:not-allowed}
+select,input{font:inherit;font-size:12px;padding:5px 8px;border:1px solid var(--border);
+  border-radius:7px;background:var(--card);color:var(--text);max-width:100%}
+
+/* ---------- 图片 ---------- */
+.imgs{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.imgbox{border:1px solid var(--border);border-radius:8px;overflow:hidden;background:#0b0d10}
+.imgbox img{display:block;width:100%;height:auto;min-height:90px;object-fit:contain}
+.imgbox .cap{background:var(--card);padding:5px 8px;font-size:11px;color:var(--muted);
+  border-top:1px solid var(--border);display:flex;gap:6px;align-items:center}
+.imgbox .cap b{color:var(--text);font-weight:600}
+
+/* ---------- 键值 ---------- */
+.kv{display:grid;grid-template-columns:minmax(96px,auto) 1fr;gap:5px 12px;font-size:12px}
+.kv .k{color:var(--muted)}
+.kv .v{color:var(--text);word-break:break-word}
+.kv .v .faint{color:var(--faint)}
+
+/* ---------- 列表 ---------- */
+ul.tight{margin:0;padding-left:18px;font-size:12px;line-height:1.7}
+ul.tight li{margin:2px 0}
+.pill{display:inline-block;padding:1px 7px;border-radius:5px;font-size:11px;
+  background:var(--slate-bg);color:var(--slate);border:1px solid var(--slate-bd);
+  margin:2px 4px 2px 0}
+.steps{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.steps .arw{color:var(--faint);font-size:11px}
+.warn-item{border:1px solid var(--border);border-left:3px solid var(--amber);
+  border-radius:8px;padding:9px 11px;margin-bottom:8px;background:#fffdf7}
+.warn-item .wl{display:flex;gap:8px;align-items:center;margin-bottom:5px}
+.warn-item .viol{font-size:12px;font-weight:600;color:var(--text)}
+.mdbox{font-size:12px;line-height:1.75;white-space:pre-wrap;word-break:break-word;
+  background:#fafbfc;border:1px solid var(--border);border-radius:8px;padding:12px 14px;
+  max-height:520px;overflow:auto}
+details.acc{border:1px solid var(--border);border-radius:8px;margin-bottom:8px;background:#fafbfc}
+details.acc>summary{cursor:pointer;padding:8px 11px;font-size:12px;font-weight:600;
+  list-style:none;display:flex;align-items:center;gap:8px}
+details.acc>summary::-webkit-details-marker{display:none}
+details.acc>summary::before{content:"▸";color:var(--faint);font-size:11px}
+details.acc[open]>summary::before{content:"▾"}
+details.acc .body{padding:0 11px 11px;font-size:12px;line-height:1.7}
+.tool-line{font-family:var(--mono);font-size:11px;color:var(--muted);margin:3px 0}
+
+/* ---------- toast ---------- */
+#toast{position:fixed;right:20px;bottom:20px;display:flex;flex-direction:column;
+  gap:8px;z-index:50;pointer-events:none}
+#toast div{background:#111827;color:#fff;padding:8px 14px;border-radius:8px;font-size:12px;
+  box-shadow:0 6px 18px rgba(0,0,0,.18);animation:tin .18s ease-out}
+#toast div.err{background:var(--red)}
+@keyframes tin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.spin{display:inline-block;width:11px;height:11px;border:2px solid var(--border);
+  border-top-color:var(--primary);border-radius:50%;animation:sp .7s linear infinite;
+  vertical-align:-1px;margin-right:6px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.note{font-size:11px;color:var(--faint);line-height:1.6}
+.hr{height:1px;background:var(--border);margin:12px 0}
+@media (max-width:760px){nav{width:168px}.brand h1{font-size:13px}}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="brand">
+    <h1>施工安全巡检 Agent</h1>
+    <p>审阅控制台 · 只读</p>
+  </div>
+  <div class="nav-sec">审阅</div>
+  <div class="nav-item active" data-v="overview">总览</div>
+  <div class="nav-item" data-v="runs">批次评估</div>
+  <div class="nav-item" data-v="pair">图对详情</div>
+  <div class="nav-item" data-v="pending">待审队列 <span id="navPendingN"></span></div>
+  <div class="nav-sec">基准</div>
+  <div class="nav-item" data-v="golden">专家真值集</div>
+  <div class="nav-item" data-v="memory">作业类型记忆</div>
+  <div class="nav-sec">系统</div>
+  <div class="nav-item" data-v="system">服务与词表</div>
+  <div class="nav-foot">
+    <b id="footStatus">连接中…</b>
+    <span id="footHost">/api</span>
+  </div>
+</nav>
+
+<main>
+
+  <!-- ============ 总览 ============ -->
+  <section class="view active" id="v-overview">
+    <div class="vhead">
+      <h2>总览</h2>
+      <span class="sub" id="ovGen">—</span>
+      <div class="row-actions"><button onclick="loadOverview()">刷新</button></div>
+    </div>
+    <div class="grid g-kpi" id="ovKpi"></div>
+    <div class="card">
+      <h3>批次评估 <span class="chip" id="ovRunsN"></span></h3>
+      <div class="tbl-wrap" id="ovRuns"></div>
+    </div>
+    <div class="card" id="ovNoteCard" style="display:none">
+      <h3>真值集说明</h3>
+      <div class="note" id="ovNote"></div>
+    </div>
+  </section>
+
+  <!-- ============ 批次评估 ============ -->
+  <section class="view" id="v-runs">
+    <div class="vhead">
+      <h2>批次评估</h2>
+      <span class="sub">判断结果二值：成功(安全/低风险/高风险) 或 失败(转人工)</span>
+      <div class="row-actions"><button onclick="loadRuns()">刷新</button></div>
+    </div>
+    <div class="grid g-kpi" id="rkKpi"></div>
+    <div class="card">
+      <h3>批次列表 <span class="chip" id="rkN"></span></h3>
+      <div class="tbl-wrap" id="rkList"></div>
+    </div>
+    <div class="card">
+      <h3>批次明细 <span class="chip" id="rkPick"></span></h3>
+      <div class="note" style="margin-bottom:8px">点击上方批次查看逐图对判定；带 <span class="badge b-red b-mark">X</span> / <span class="badge b-amber b-mark">O</span> 的行是失配重点。</div>
+      <div class="tbl-wrap" id="rkRows"><div class="empty">尚未选择批次</div></div>
+    </div>
+  </section>
+
+  <!-- ============ 图对详情 ============ -->
+  <section class="view" id="v-pair">
+    <div class="vhead">
+      <h2>图对详情</h2>
+      <span class="sub" id="pdTitle">—</span>
+      <div class="row-actions">
+        <select id="pdRun" onchange="loadPairOptions()"></select>
+        <select id="pdPair" onchange="loadPair()"></select>
+        <button class="primary" onclick="loadPair()">查看</button>
+      </div>
+    </div>
+    <div id="pdBody"><div class="empty">请选择批次与图对</div></div>
+  </section>
+
+  <!-- ============ 待审队列 ============ -->
+  <section class="view" id="v-pending">
+    <div class="vhead">
+      <h2>待审队列</h2>
+      <span class="sub" id="pnSub">—</span>
+      <div class="row-actions"><button onclick="loadPending()">刷新</button></div>
+    </div>
+    <div class="grid g-kpi" id="pnKpi"></div>
+    <div class="card">
+      <h3>条目 <span class="chip" id="pnN"></span></h3>
+      <div class="tbl-wrap" id="pnList"></div>
+    </div>
+  </section>
+
+  <!-- ============ 真值集 ============ -->
+  <section class="view" id="v-golden">
+    <div class="vhead">
+      <h2>专家真值集</h2>
+      <span class="sub" id="gdSub">—</span>
+      <div class="row-actions"><button onclick="loadGolden()">刷新</button></div>
+    </div>
+    <div class="card" id="gdNoteCard" style="display:none">
+      <h3>标注说明</h3><div class="note" id="gdNote"></div>
+    </div>
+    <div class="card">
+      <h3>条目 <span class="chip" id="gdN"></span></h3>
+      <div class="tbl-wrap" id="gdList"></div>
+    </div>
+  </section>
+
+  <!-- ============ 记忆 ============ -->
+  <section class="view" id="v-memory">
+    <div class="vhead">
+      <h2>作业类型记忆</h2>
+      <span class="sub">agent 沉淀的「作业类型 → 场所」推断记录</span>
+      <div class="row-actions"><button onclick="loadMemory()">刷新</button></div>
+    </div>
+    <div class="card">
+      <h3>记录 <span class="chip" id="mmN"></span></h3>
+      <div class="tbl-wrap" id="mmList"></div>
+    </div>
+  </section>
+
+  <!-- ============ 系统 ============ -->
+  <section class="view" id="v-system">
+    <div class="vhead">
+      <h2>服务与词表</h2>
+      <span class="sub">只读控制台 API 的自检信息</span>
+      <div class="row-actions"><button onclick="loadSystem()">刷新</button></div>
+    </div>
+    <div class="grid g-2">
+      <div class="card"><h3>健康检查</h3><div id="syHealth"></div></div>
+      <div class="card"><h3>词表 / 分组</h3><div id="syMeta"></div></div>
+    </div>
+  </section>
+
+</main>
+
+<div id="toast"></div>
+
+<!-- ================= 脚本 ================= -->
+<script>
+"use strict";
+/* 施工安全巡检 Agent · 审阅控制台（只读）
+   对接 agent/api_web.py 的 /api/* 接口；单文件、零依赖、无构建步骤。
+   与 agent/api_web.py 的指标口径保持信任关系：本页只做呈现，不重算判定。 */
+
+const API = '/api';
+let META = {};
+const $ = id => document.getElementById(id);
+
+/* ---------- 基础工具 ---------- */
+function esc(s){
+  return String(s==null?'':s).replace(/[&<>"']/g, c => (
+    {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function isNil(v){ return v===null || v===undefined || v===''; }
+function disp(v, alt){ return isNil(v) ? (alt||'—') : v; }
+function pct(x){
+  if(x===null || x===undefined) return '—';
+  return (x*100).toFixed(1)+'%';
+}
+function sec(x){
+  if(x===null || x===undefined) return '—';
+  return Number(x).toFixed(1)+'s';
+}
+function toast(msg, isErr){
+  const box = $('toast');
+  const d = document.createElement('div');
+  if(isErr) d.className = 'err';
+  d.textContent = msg;
+  box.appendChild(d);
+  setTimeout(()=>{ d.style.opacity='0'; d.style.transition='opacity .3s'; }, 2600);
+  setTimeout(()=>d.remove(), 3000);
+}
+function loading(el, txt){
+  el.innerHTML = '<div class="empty"><span class="spin"></span>'+(txt||'加载中…')+'</div>';
+}
+function fail(el, msg){
+  el.innerHTML = '<div class="empty empty-err">加载失败：'+esc(msg)+'</div>';
+}
+async function api(path, opts){
+  const r = await fetch(API+path, Object.assign({headers:{'Accept':'application/json'}}, opts||{}));
+  if(!r.ok){
+    let detail = r.status+' '+r.statusText;
+    try{ const j = await r.json(); if(j && j.detail) detail = j.detail; }catch(e){}
+    throw new Error(detail);
+  }
+  return r.json();
+}
+function kv(pairs){
+  return '<div class="kv">' + pairs.map(([k,v])=>{
+    const val = (v===null || v===undefined || v==='') ? '<span class="faint">—</span>' : v;
+    return '<div class="k">'+esc(k)+'</div><div class="v">'+val+'</div>';
+  }).join('') + '</div>';
+}
+
+/* ---------- 语义映射（词表来自 /api/meta，不写死在后端之外） ---------- */
+const TONE_CLS = {alert:'b-red', tip:'b-amber', safe:'b-green', fail:'b-gray'};
+function dispBadge(code){
+  if(isNil(code)) return '<span class="faint">—</span>';
+  const m = (META.dispositions||{})[code];
+  const cls = m ? (TONE_CLS[m.tone]||'b-gray') : 'b-gray';
+  const label = m ? m.label : code;
+  return '<span class="badge '+cls+'" title="'+esc(code)+'">'+esc(label)+'</span>';
+}
+function stepCn(s){
+  const base = String(s||'').replace(/\(.*$/,'');
+  return (META.steps||{})[base] || s;
+}
+function toolCn(t){ return (META.tools||{})[t] || t; }
+function riskBadge(r){
+  if(isNil(r)) return '<span class="badge b-gray">未判定</span>';
+  const cls = r==='高风险' ? 'b-red' : (r==='低风险' ? 'b-amber' : 'b-green');
+  return '<span class="badge '+cls+'">'+esc(r)+'</span>';
+}
+const MARK_META = {
+  V:{cls:'b-green', tip:'完全一致（系统结论 = 专家结论）'},
+  O:{cls:'b-amber', tip:'严重度同档（等级映射后一致）'},
+  X:{cls:'b-red',   tip:'不一致'},
+  ERR:{cls:'b-gray',tip:'执行失败'}
+};
+function markBadge(m){
+  const meta = MARK_META[m] || {cls:'b-gray', tip:'未知'};
+  return '<span class="badge '+meta.cls+' b-mark" title="'+esc(meta.tip)+'">'+esc(m||'?')+'</span>';
+}
+function typeBadge(kind){
+  const m = {manual:['b-violet','需人工介入'], sample:['b-blue','抽样复核']}[kind];
+  return m ? '<span class="badge '+m[0]+'">'+m[1]+'</span>' : '<span class="badge b-gray">历史</span>';
+}
+
+/* ---------- 导航 ---------- */
+const LOADED = {};
+function nav(v){
+  document.querySelectorAll('.nav-item').forEach(n=>{
+    n.classList.toggle('active', n.dataset.v===v);
+  });
+  document.querySelectorAll('.view').forEach(s=>{
+    s.classList.toggle('active', s.id==='v-'+v);
+  });
+  const fn = {overview:loadOverview, runs:loadRuns, pair:initPair,
+              pending:loadPending, golden:loadGolden, memory:loadMemory,
+              system:loadSystem}[v];
+  if(fn && !LOADED[v]){ LOADED[v] = true; fn(); }
+}
+document.querySelectorAll('.nav-item').forEach(n=>{
+  n.onclick = ()=>nav(n.dataset.v);
+});
+
+/* ================= 总览 ================= */
+async function loadOverview(){
+  const box = $('ovRuns');
+  loading(box);
+  try{
+    const d = await api('/overview');
+    const t = d.totals || {};
+    $('ovGen').textContent = d.generated_at ? ('生成于 '+d.generated_at) : '—';
+    $('ovKpi').innerHTML = [
+      kpi('批次数', t.n_runs, (t.n_runs||0)+' 个已评估批次'),
+      kpi('图对总数', t.n_pairs, '跨批次累计'),
+      kpi('待审条目', t.n_pending, '需人工介入/抽样复核', t.n_pending>0?'warn':''),
+      kpi('真值集', t.n_golden, '专家标注图对'),
+      kpi('漏报 (false_safe)', (t.false_safe||[]).length,
+          (t.false_safe||[]).length ? (t.false_safe||[]).join(', ') : '无：无「专家判高/系统判安全」', (t.false_safe||[]).length?'warn':'ok'),
+      kpi('判轻 (under)', (t.under||[]).length,
+          (t.under||[]).length ? (t.under||[]).join(', ') : '无系统性低判', (t.under||[]).length?'warn':'ok')
+    ].join('');
+    $('ovRunsN').textContent = (d.runs||[]).length+' 个批次';
+    if(!(d.runs||[]).length){
+      box.innerHTML = '<div class="empty">尚无带 summary.json 的评估批次</div>';
+    }else{
+      box.innerHTML = runTable(d.runs);
+    }
+    if(d.golden_note){
+      $('ovNoteCard').style.display='block';
+      $('ovNote').textContent = d.golden_note;
+    }
+  }catch(e){
+    fail(box, e.message+'（请确认已用 uvicorn agent.api_web:standalone 启动）');
+  }
+}
+function kpi(k, v, note, cls){
+  return '<div class="kpi '+(cls||'')+'"><div class="k">'+esc(k)+'</div>'
+       + '<div class="v">'+esc(v==null?'—':v)+'</div>'
+       + '<div class="n">'+esc(note||'')+'</div></div>';
+}
+function runTable(runs){
+  const head = '<tr><th>批次</th><th class="num">图对</th><th class="num">一致 V</th>'
+    + '<th class="num">同档 O</th><th class="num">不一致 X</th><th class="num">失败</th>'
+    + '<th class="num">完全一致率</th><th class="num">同档率</th><th class="num">均耗时</th>'
+    + '<th>报告</th><th>更新时间</th></tr>';
+  const body = runs.map(r=>{
+    const m = r.metrics||{};
+    return '<tr class="clickable" onclick="openRun(\''+esc(r.run)+'\')">'
+      + '<td class="mono">'+esc(r.run)+'</td>'
+      + '<td class="num">'+disp(m.n,0)+'</td>'
+      + '<td class="num">'+disp(m.exact,0)+'</td>'
+      + '<td class="num">'+disp(m.tier_ok,0)+'</td>'
+      + '<td class="num">'+(m.inconsistent ? '<b style="color:var(--red)">'+m.inconsistent+'</b>' : 0)+'</td>'
+      + '<td class="num">'+disp(m.failed,0)+'</td>'
+      + '<td class="num">'+pct(m.exact_rate)+'</td>'
+      + '<td class="num">'+pct(m.tier_rate)+'</td>'
+      + '<td class="num">'+sec(m.avg_s)+'</td>'
+      + '<td>'+(r.has_report ? '<span class="badge b-blue">有</span>' : '<span class="faint">—</span>')+'</td>'
+      + '<td class="mono" style="font-size:11px">'+esc(shorte(r.updated))+'</td>'
+      + '</tr>';
+  }).join('');
+  return '<table><thead>'+head+'</thead><tbody>'+body+'</tbody></table>';
+}
+function shorte(s){
+  if(!s) return '—';
+  return String(s).replace('T',' ').replace(/\+.*$/,'').slice(0,19);
+}
+function openRun(run){
+  nav('runs');
+  LOADED.runs = true;
+  loadRuns(run);
+}
+
+/* ================= 批次评估 ================= */
+let RUNS = [];
+async function loadRuns(pick){
+  const box = $('rkList');
+  loading(box);
+  try{
+    const d = await api('/runs');
+    RUNS = d.runs || [];
+    $('rkN').textContent = RUNS.length+' 个批次';
+    if(!RUNS.length){
+      box.innerHTML = '<div class="empty">尚无评估批次</div>';
+      $('rkKpi').innerHTML = '';
+      return;
+    }
+    const tot = RUNS.reduce((a,r)=>{
+      const m = r.metrics||{};
+      a.n += m.n||0; a.exact += m.exact||0; a.tier += m.tier_ok||0;
+      a.x += m.inconsistent||0; a.failed += m.failed||0;
+      return a;
+    }, {n:0,exact:0,tier:0,x:0,failed:0});
+    $('rkKpi').innerHTML = [
+      kpi('图对总数', tot.n, '跨 '+RUNS.length+' 个批次'),
+      kpi('完全一致 V', tot.exact, '系统结论与专家完全一致', 'ok'),
+      kpi('同档 O', tot.tier, '严重度同档'),
+      kpi('不一致 X', tot.x, '含判重/判轻与漏报', tot.x?'warn':'ok'),
+      kpi('失败', tot.failed, '执行异常', tot.failed?'warn':'')
+    ].join('');
+    box.innerHTML = runTable(RUNS);
+    const want = pick || (RUNS[0] && RUNS[0].run);
+    if(want) selectRun(want);
+  }catch(e){
+    fail(box, e.message);
+  }
+}
+async function selectRun(run){
+  const box = $('rkRows');
+  $('rkPick').textContent = run;
+  loading(box);
+  try{
+    const d = await api('/runs/'+encodeURIComponent(run));
+    const rows = d.rows || [];
+    if(!rows.length){ box.innerHTML = '<div class="empty">该批次无逐图对记录</div>'; return; }
+    const head = '<tr><th>图对</th><th>专家结论</th><th>系统结论</th><th>风险</th>'
+      + '<th>判定</th><th class="num">耗时</th><th>处置</th><th>转人工理由</th><th>场景</th></tr>';
+    const body = rows.map(r=>{
+      return '<tr class="clickable" onclick="openPair(\''+esc(run)+'\',\''+esc(r.pair_id)+'\')">'
+        + '<td class="mono">'+esc(r.pair_id)+'</td>'
+        + '<td>'+esc(disp(r.expert))+'</td>'
+        + '<td>'+esc(disp(r.system))+'</td>'
+        + '<td>'+riskBadge(r.risk)+'</td>'
+        + '<td>'+markBadge(r.mark)+'</td>'
+        + '<td class="num">'+sec(r.elapsed_s)+'</td>'
+        + '<td>'+dispBadge(r.disposition)+'</td>'
+        + '<td style="font-size:11px;color:var(--muted)">'+esc((r.review_reasons||[]).join(', ')||'—')+'</td>'
+        + '<td style="font-size:11px;color:var(--muted);max-width:220px">'+esc(disp(r.scene_label))+'</td>'
+        + '</tr>';
+    }).join('');
+    box.innerHTML = '<table><thead>'+head+'</thead><tbody>'+body+'</tbody></table>';
+  }catch(e){
+    fail(box, e.message);
+  }
+}
+
+/* ================= 图对详情 ================= */
+async function initPair(){
+  const sel = $('pdRun');
+  if(sel.options.length){ loadPairOptions(); return; }
+  try{
+    const d = await api('/runs');
+    const runs = (d.runs||[]).map(r=>r.run);
+    if(!runs.length){ $('pdBody').innerHTML='<div class="empty">尚无评估批次</div>'; return; }
+    sel.innerHTML = runs.map(r=>'<option>'+esc(r)+'</option>').join('');
+    loadPairOptions();
+  }catch(e){
+    fail($('pdBody'), e.message);
+  }
+}
+async function loadPairOptions(){
+  const run = $('pdRun').value;
+  const sel = $('pdPair');
+  sel.innerHTML = '';
+  if(!run) return;
+  try{
+    const d = await api('/runs/'+encodeURIComponent(run)+'/pairs');
+    const pairs = d.pairs || [];
+    sel.innerHTML = pairs.map(p=>'<option>'+esc(p)+'</option>').join('') || '<option value="">（无图对）</option>';
+    if(pairs.length) loadPair();
+    else $('pdBody').innerHTML = '<div class="empty">该批次下没有 full-pair* 目录</div>';
+  }catch(e){
+    fail($('pdBody'), e.message);
+  }
+}
+function openPair(run, pair){
+  nav('pair');
+  LOADED.pair = true;
+  const sel = $('pdRun');
+  if(![...sel.options].some(o=>o.value===run)){
+    sel.innerHTML = '<option>'+esc(run)+'</option>';
+  }
+  sel.value = run;
+  api('/runs/'+encodeURIComponent(run)+'/pairs').then(d=>{
+    const pairs = d.pairs||[];
+    $('pdPair').innerHTML = pairs.map(p=>'<option>'+esc(p)+'</option>').join('');
+    $('pdPair').value = pair;
+    loadPair();
+  }).catch(e=>fail($('pdBody'), e.message));
+}
+async function loadPair(){
+  const run = $('pdRun').value, pair = $('pdPair').value;
+  const box = $('pdBody');
+  if(!run || !pair){ box.innerHTML = '<div class="empty">请选择批次与图对</div>'; return; }
+  $('pdTitle').textContent = run+' / '+pair;
+  loading(box);
+  try{
+    const d = await api('/runs/'+encodeURIComponent(run)+'/pairs/'+encodeURIComponent(pair));
+    box.innerHTML = renderPair(d);
+  }catch(e){
+    fail(box, e.message);
+  }
+}
+function renderPair(d){
+  const g = d.golden || {};
+  const risk = d.risk_assessment || {};
+  const row = d.summary_row || {};
+  const out = [];
+
+  /* --- 结论对照 --- */
+  const match = row.mark ? markBadge(row.mark) : '';
+  out.push('<div class="card"><h3>结论对照 '+match+'</h3>'
+    + kv([
+        ['图对', '<span class="mono">'+esc(d.pair_id)+'</span>'],
+        ['专家结论', esc(disp(g.expert_risk || row.expert))],
+        ['系统结论', esc(disp(row.system || d.disposition))],
+        ['处置', dispBadge(d.disposition)],
+        ['总体风险', riskBadge(d.risk_assessment && d.risk_assessment.overall_risk)],
+        ['需人工复核', d.need_human_review ? '<span class="badge b-violet">是</span>' : '<span class="badge b-green">否</span>'],
+        ['告警条数', disp(risk.n_warnings)],
+        ['转人工理由', esc((d.review_reasons||[]).join(', ')||'—')],
+        ['异常标记', esc((d.anomalies||[]).join(', ')||'—')],
+        ['场景标注', esc(disp(g.scene_label))],
+        ['专家备注', esc(disp(g.notes))]
+      ])
+    + '</div>');
+
+  /* --- 图像 --- */
+  const imgs = d.images || {};
+  const IMG_CN = {input:'原始输入', fused:'融合图', visible:'可见光', infrared:'红外'};
+  const boxes = Object.keys(IMG_CN).filter(k=>imgs[k]).map(k=>{
+    return '<div class="imgbox"><img loading="lazy" src="'+esc(imgs[k])+'" alt="'+esc(IMG_CN[k])+'">'
+      + '<div class="cap"><b>'+IMG_CN[k]+'</b><span class="mono" style="font-size:10px">'+esc(imgs[k].split('/').pop())+'</span></div></div>';
+  });
+  out.push('<div class="card"><h3>图像证据</h3>'
+    + (boxes.length ? '<div class="imgs">'+boxes.join('')+'</div>'
+                    : '<div class="empty">该图对无可用标注图</div>')
+    + '</div>');
+
+  /* --- 场景理解 --- */
+  const sc = normScene(d.scene);
+  const sd = sc.scene || {};
+  out.push('<div class="card"><h3>场景理解</h3>'
+    + kv([
+        ['主导作业', esc(disp(sd.dominant_state))],
+        ['场所类型', esc(disp(sd.site_type))],
+        ['室内/外', esc(disp(sd.place))],
+        ['作业高度', esc(disp(sd.work_height))],
+        ['光照', esc(disp(sd.lighting))],
+        ['可见光质量', esc(disp(sd.rgb_visibility))],
+        ['红外质量', esc(disp(sd.ir_quality))]
+      ])
+    + (sd.dominant_state_basis ? '<div class="hr"></div><div class="note">判据：'+esc(sd.dominant_state_basis)+'</div>' : '')
+    + ((sd.env_protections||[]).length ? '<div class="hr"></div><div class="k" style="font-size:11px;color:var(--muted);margin-bottom:5px">环境防护（不可见项）</div><ul class="tight">'
+        + sd.env_protections.map(x=>'<li>'+esc(x)+'</li>').join('') + '</ul>' : '')
+    + '</div>');
+
+  /* --- 目标与空间关系 --- */
+  const targets = sc.targets || [];
+  if(targets.length){
+    const PPE_CN = {helmet:'安全帽', vest:'反光背心', gloves:'手套', safety_shoes:'安全鞋'};
+    const rows = targets.map(t=>{
+      const ppe = t.ppe || {};
+      const ppeHtml = Object.keys(PPE_CN).map(k=>{
+        const o = ppe[k];
+        if(!o || o.value===null || o.value===undefined) return '<span class="pill">'+PPE_CN[k]+'? </span>';
+        return '<span class="pill" style="'+(o.value?'':'color:var(--red)')+'">'+PPE_CN[k]+(o.value?' ✓':' ✗')+'</span>';
+      }).join('');
+      const eq = (t.equipment_state||{}).value;
+      return '<tr><td class="mono">'+esc(t.bbox_id)+'</td>'
+        + '<td>'+esc(disp(t.type))+'</td>'
+        + '<td style="max-width:280px">'+esc(disp(t.action))+'</td>'
+        + '<td>'+ppeHtml+'</td>'
+        + '<td>'+esc(disp(eq))+'</td>'
+        + '<td>'+esc(disp(t.confirmed_by))+'</td>'
+        + '<td>'+(t.occluded?'<span class="badge b-amber">遮挡</span>':'<span class="faint">—</span>')+'</td></tr>';
+    }).join('');
+    out.push('<div class="card"><h3>目标与防护 <span class="chip">'+targets.length+' 个</span></h3>'
+      + '<div class="tbl-wrap"><table><thead><tr><th>ID</th><th>类型</th><th>动作</th>'
+      + '<th>PPE</th><th>设备状态</th><th>来源</th><th>遮挡</th></tr></thead><tbody>'
+      + rows + '</tbody></table></div></div>');
+  }
+  const rels = sc.spatial_relations || [];
+  if(rels.length){
+    out.push('<div class="card"><h3>空间关系</h3><ul class="tight">'
+      + rels.map(r=>'<li><b>'+esc(r.subject)+' → '+esc(r.object)+'</b>：'+esc(disp(r.relation))
+          + ' <span class="faint">(conf '+disp(r.confidence)+')</span></li>').join('')
+      + '</ul></div>');
+  }
+  if((sc.candidate_violations||[]).length || sc.uncertainty){
+    out.push('<div class="card"><h3>候选违规与不确定性</h3>'
+      + ((sc.candidate_violations||[]).length ? '<ul class="tight">'
+          + sc.candidate_violations.map(v=>'<li>'+esc(v)+'</li>').join('') + '</ul>' : '')
+      + (sc.uncertainty ? '<div class="hr"></div><div class="note">'+esc(sc.uncertainty)+'</div>' : '')
+      + '</div>');
+  }
+
+  /* --- 感知链：对账 / 检测 / 设备 --- */
+  const rec = d.reconciliation || {};
+  const det = d.detections || {};
+  const objs = det.objects || [];
+  const eqc = d.equipment_check || {};
+  const recRows = objs.map(o=>
+      '<tr><td class="mono">'+esc(o.class_name)+'</td>'
+    + '<td class="num">'+Number(o.conf).toFixed(3)+'</td>'
+    + '<td class="mono" style="font-size:11px">'+esc((o.bbox_xyxy||[]).map(x=>Math.round(x)).join(', '))+'</td>'
+    + '<td class="num">'+disp(o.w && Number(o.w).toFixed(1))+'</td>'
+    + '<td class="num">'+disp(o.h && Number(o.h).toFixed(1))+'</td></tr>').join('');
+  out.push('<div class="card"><h3>感知链 · 双源对账</h3>'
+    + kv([
+        ['VLM 目标数', disp(rec.n_vlm)],
+        ['GDYOLO 目标数', disp(rec.n_yolo)],
+        ['匹配', disp(rec.matched)],
+        ['仅 VLM', rec.vlm_only ? '<b style="color:var(--amber)">'+rec.vlm_only+'</b>' : 0],
+        ['仅 GDYOLO', rec.yolo_only ? '<b style="color:var(--amber)">'+rec.yolo_only+'</b>' : 0],
+        ['IoU 阈值', disp(rec.iou_thr)],
+        ['设备硬冲突', eqc.hard_mismatch ? '<span class="badge b-red">有</span>' : '<span class="badge b-green">无</span>']
+      ])
+    + (recRows ? '<div class="hr"></div><div class="tbl-wrap"><table><thead><tr>'
+        + '<th>类别</th><th class="num">置信度</th><th>bbox (xyxy)</th><th class="num">宽</th><th class="num">高</th>'
+        + '</tr></thead><tbody>'+recRows+'</tbody></table></div>'
+      : '<div class="hr"></div><div class="empty">无 GDYOLO 检测目标</div>')
+    + '</div>');
+
+  /* --- 规则引擎 --- */
+  const rule = d.rule || {};
+  if(Object.keys(rule).length){
+    const wh = rule.work_hazard || {}, pr = rule.protection || {}, su = rule.supervision || {};
+    out.push('<div class="card"><h3>规则引擎三要素</h3>'
+      + kv([
+          ['作业危险度', esc(disp(wh.level)) + (wh.matched&&wh.matched.length ? ' <span class="faint">('+esc(wh.matched.join(', '))+')</span>' : '')],
+          ['必需防护', esc((pr.critical_required||[]).join(', ')||'—')],
+          ['缺失关键防护', (pr.missing_critical||[]).length ? '<b style="color:var(--red)">'+esc(pr.missing_critical.join(', '))+'</b>' : '<span class="badge b-green">齐备</span>'],
+          ['缺失软性防护', esc((pr.missing_soft||[]).join(', ')||'—')],
+          ['未知字段数', disp(pr.unknown_fields)],
+          ['作业人数', disp(pr.n_workers)],
+          ['单人作业', su.solo ? '<span class="badge b-amber">是</span>' : '<span class="badge b-green">否</span>'],
+          ['监护在场', su.observer_present ? '<span class="badge b-green">有</span>' : '<span class="badge b-gray">无</span>'],
+          ['风险驱动', esc((rule.drivers||[]).join('；')||'—')],
+          ['证据缺口', esc((rule.evidence_gaps||[]).join('；')||'—')]
+        ])
+      + '</div>');
+  }
+
+  /* --- 警示 --- */
+  const warns = d.warnings || [];
+  const rep = d.report || {};
+  out.push('<div class="card"><h3>警示输出 <span class="chip">'+warns.length+' 条'
+      + (d.warning_overall_risk ? ' · 总体 '+esc(d.warning_overall_risk) : '')+'</span></h3>'
+    + (warns.length ? warns.map(w=>{
+        return '<div class="warn-item">'
+          + '<div class="wl"><span class="badge b-amber">'+esc(disp(w.level))+'</span>'
+          + riskBadge(w.risk_level)
+          + '<span class="viol">'+esc(disp(w.violation))+'</span>'
+          + '<span class="faint" style="margin-left:auto;font-size:11px">置信 '+disp(w.confidence)+'</span></div>'
+          + ((w.evidence||[]).length ? '<ul class="tight" style="font-size:11px;color:var(--muted)">'
+              + w.evidence.map(x=>'<li>'+esc(x)+'</li>').join('') + '</ul>' : '')
+          + ((w.clause_ids||[]).length ? '<div style="margin-top:4px">'+w.clause_ids.map(c=>'<span class="pill">'+esc(c)+'</span>').join('')+'</div>' : '')
+          + '</div>';
+      }).join('')
+      : '<div class="empty">无警示输出</div>')
+    + ((d.warning_text || rep.warning_text) ?
+        '<div class="hr"></div><div class="k" style="font-size:11px;color:var(--muted);margin-bottom:5px">面向现场的警示文本</div>'
+        + '<div class="mdbox">'+esc(d.warning_text || rep.warning_text)+'</div>' : '')
+    + '</div>');
+
+  /* --- 报告三要素 --- */
+  if(rep.work_description || rep.situation_assessment || rep.clause_analysis){
+    out.push('<div class="card"><h3>作业描述与态势评估</h3>'
+      + (rep.work_description ? '<div class="k" style="font-size:11px;color:var(--muted);margin-bottom:4px">作业描述</div><div class="mdbox">'+esc(rep.work_description)+'</div>' : '')
+      + (rep.situation_assessment ? '<div class="k" style="font-size:11px;color:var(--muted);margin:10px 0 4px">态势评估</div><div class="mdbox">'+esc(rep.situation_assessment)+'</div>' : '')
+      + (rep.clause_analysis ? '<div class="k" style="font-size:11px;color:var(--muted);margin:10px 0 4px">条款分析</div><div class="mdbox">'+esc(rep.clause_analysis)+'</div>' : '')
+      + '</div>');
+  }
+
+  /* --- 证据校验 --- */
+  const ev = d.evidence_check;
+  if(ev && typeof ev === 'object'){
+    out.push('<div class="card"><h3>证据链校验</h3>'
+      + kv([['通过', ev.valid ? '<span class="badge b-green">是</span>' : '<span class="badge b-red">否</span>'],
+            ['原因', esc((ev.reasons||[]).join('；')||'—')]])
+      + '</div>');
+  }
+
+  /* --- 执行轨迹 --- */
+  const steps = d.steps || [], calls = d.tool_calls || [];
+  const stepHtml = steps.length
+    ? '<div class="steps">' + steps.map((s,i)=>
+        (i?'<span class="arw">→</span>':'') + '<span class="pill">'+esc(stepCn(s))+'</span>').join('') + '</div>'
+    : '<div class="empty">无步骤记录</div>';
+  const callHtml = calls.map((c,i)=>{
+    const st = c.status || 'ok';
+    const cls = st==='ok' ? 'b-green' : (st==='error'||st==='failed' ? 'b-red' : 'b-amber');
+    const extra = [];
+    if(c.n_objects!=null) extra.push('n_objects='+c.n_objects);
+    if(c.attempts!=null) extra.push('attempts='+c.attempts);
+    if(c.rounds!=null) extra.push('rounds='+c.rounds);
+    if(c.route) extra.push('route='+c.route);
+    if(c.flag) extra.push('flag='+c.flag);
+    if(c.error) extra.push('error='+c.error);
+    let sub = '';
+    if(c.calls && c.calls.length){
+      sub = '<div style="margin:4px 0 0 18px">' + c.calls.map(x=>
+        '<div class="tool-line">· r'+x.round+' '+esc(toolCn(x.tool))
+        + (x.args && x.args.rationale ? ' — '+esc(String(x.args.rationale).slice(0,220)) : '')
+        + (x.obs ? ' <span class="faint">['+esc(Object.entries(x.obs).map(([k,v])=>k+'='+v).join(' '))+']</span>' : '')
+        + '</div>').join('') + '</div>';
+    }
+    return '<details class="acc"><summary><span class="badge '+cls+'">'+esc(st)+'</span>'
+      + esc(toolCn(c.tool)) + '<span class="faint" style="font-weight:400;font-size:11px;margin-left:auto">'
+      + esc(extra.join(' · ')) + '</span></summary>'
+      + (sub ? '<div class="body">'+sub+'</div>' : '') + '</details>';
+  }).join('');
+  out.push('<div class="card"><h3>执行轨迹 <span class="chip">'
+      + steps.length+' 步 · '+(calls.length)+' 次工具调用'
+      + (d.retry_count ? ' · 重试 '+d.retry_count : '')+'</span></h3>'
+    + stepHtml
+    + (calls.length ? '<div class="hr"></div>'+callHtml : '')
+    + '</div>');
+
+  /* --- 日志 --- */
+  if((d.logs||[]).length){
+    out.push('<div class="card"><h3>产物日志</h3><div>'
+      + d.logs.map(l=>'<span class="pill">'+esc(l)+'</span>').join('')
+      + '</div><div class="note" style="margin-top:6px">日志位于 <span class="mono">results/agent/'
+      + esc(d.run)+'/full-'+esc(d.pair_id)+'/</span>，控制台为只读，不提供在线查看。</div></div>');
+  }
+  return out.join('');
+}
+function normScene(s){
+  if(!s || typeof s !== 'object') return {};
+  if(s.scene && typeof s.scene === 'object') return s;
+  return {scene:s, targets:[], spatial_relations:[], candidate_violations:[], uncertainty:''};
+}
+
+/* ================= 待审队列 ================= */
+async function loadPending(){
+  const box = $('pnList');
+  loading(box);
+  try{
+    const d = await api('/pending');
+    const es = d.entries || [];
+    $('pnSub').textContent = d.n_open+' 条待处理 / 共 '+es.length+' 条';
+    $('pnKpi').innerHTML = [
+      kpi('待处理', d.n_open, '尚未标记处理', d.n_open>0?'warn':'ok'),
+      kpi('总计', es.length, '含已处理历史'),
+      kpi('需人工介入', es.filter(e=>e.kind==='manual').length, 'kind=manual'),
+      kpi('抽样复核', es.filter(e=>e.kind==='sample').length, 'kind=sample')
+    ].join('');
+    $('navPendingN').innerHTML = d.n_open>0 ? '<span class="badge b-violet" style="margin-left:6px">'+d.n_open+'</span>' : '';
+    $('pnN').textContent = es.length+' 条';
+    if(!es.length){ box.innerHTML = '<div class="empty">待审队列为空</div>'; return; }
+    const head = '<tr><th>任务</th><th>图对</th><th>类型</th><th>处置</th><th>风险</th>'
+      + '<th>结果</th><th>失败原因</th><th>创建时间</th><th>状态</th><th>操作</th></tr>';
+    const body = es.map(e=>{
+      const resolved = !!e.resolved;
+      return '<tr>'
+        + '<td class="mono">'+esc(e.task_id)+'</td>'
+        + '<td class="mono">'+esc(disp(e.pair_id))+'</td>'
+        + '<td>'+typeBadge(e.kind)+'</td>'
+        + '<td>'+dispBadge(e.disposition)+'</td>'
+        + '<td>'+riskBadge(e.overall_risk)+'</td>'
+        + '<td style="font-size:11px">'+esc(disp(e.outcome))+'</td>'
+        + '<td style="font-size:11px;color:var(--muted);max-width:200px">'+esc(disp(e.failure_reason))+'</td>'
+        + '<td class="mono" style="font-size:11px">'+esc(shorte(e.created_at))+'</td>'
+        + '<td>'+(resolved ? '<span class="badge b-green">已处理</span>' : '<span class="badge b-amber">待处理</span>')+'</td>'
+        + '<td>'+(resolved ? '<span class="faint">—</span>'
+            : '<button class="ghost" onclick="resolvePending(\''+esc(e.task_id)+'\')">标记已处理</button>')+'</td>'
+        + '</tr>';
+    }).join('');
+    box.innerHTML = '<table><thead>'+head+'</thead><tbody>'+body+'</tbody></table>';
+  }catch(e){
+    fail(box, e.message);
+  }
+}
+async function resolvePending(taskId){
+  if(!confirm('把 '+taskId+' 标记为已处理？\n（只改 pending_reviews.json 的 resolved 字段，不改任何结论）')) return;
+  try{
+    await api('/pending/'+encodeURIComponent(taskId)+'/resolve', {method:'POST'});
+    toast('已标记：'+taskId);
+    loadPending();
+  }catch(e){
+    toast('标记失败：'+e.message, true);
+  }
+}
+
+/* ================= 真值集 ================= */
+async function loadGolden(){
+  const box = $('gdList');
+  loading(box);
+  try{
+    const d = await api('/golden');
+    const es = d.entries || [];
+    $('gdSub').textContent = (d.reviewer||'—')+' · '+(d.reviewed_at||'—');
+    if(d.note){ $('gdNoteCard').style.display='block'; $('gdNote').textContent = d.note; }
+    $('gdN').textContent = es.length+' 条';
+    if(!es.length){ box.innerHTML = '<div class="empty">真值集为空</div>'; return; }
+    const head = '<tr><th>图对</th><th>场景标注</th><th>专家结论</th><th>标准映射</th><th>动作</th><th>备注</th></tr>';
+    const body = es.map(e=>
+        '<tr><td class="mono">'+esc(e.pair_id)+'</td>'
+      + '<td style="max-width:300px">'+esc(disp(e.scene_label))+'</td>'
+      + '<td>'+esc(disp(e.expert_risk))+'</td>'
+      + '<td>'+riskBadge(e.risk_std)+'</td>'
+      + '<td>'+esc(disp(e.action))+'</td>'
+      + '<td style="font-size:11px;color:var(--muted)">'+esc(disp(e.notes))+'</td></tr>').join('');
+    box.innerHTML = '<table><thead>'+head+'</thead><tbody>'+body+'</tbody></table>';
+  }catch(e){
+    fail(box, e.message);
+  }
+}
+
+/* ================= 记忆 ================= */
+async function loadMemory(){
+  const box = $('mmList');
+  loading(box);
+  try{
+    const d = await api('/memory');
+    const arr = Array.isArray(d) ? d : (d.entries || []);
+    $('mmN').textContent = arr.length+' 条';
+    if(!arr.length){ box.innerHTML = '<div class="empty">暂无记忆记录</div>'; return; }
+    const head = '<tr><th>任务</th><th>主导作业</th><th>场所类型</th><th>判据</th></tr>';
+    const body = arr.map(m=>
+        '<tr><td class="mono">'+esc(m.task_id)+'</td>'
+      + '<td>'+esc(disp(m.dominant_state))+'</td>'
+      + '<td>'+esc(disp(m.site_type))+'</td>'
+      + '<td style="font-size:11px;color:var(--muted);max-width:420px">'+esc(disp(m.dominant_state_basis))+'</td></tr>').join('');
+    box.innerHTML = '<table><thead>'+head+'</thead><tbody>'+body+'</tbody></table>';
+  }catch(e){
+    fail(box, e.message);
+  }
+}
+
+/* ================= 系统 ================= */
+async function loadSystem(){
+  const hb = $('syHealth'), mb = $('syMeta');
+  loading(hb); loading(mb);
+  try{
+    const d = await api('/health');
+    hb.innerHTML = kv([
+      ['状态', d.status==='ok' ? '<span class="badge b-green">ok</span>' : '<span class="badge b-red">'+esc(d.status)+'</span>'],
+      ['项目', esc(disp(d.project))],
+      ['config.json', d.config_present ? '<span class="badge b-green">存在</span>' : '<span class="badge b-amber">缺失</span>'],
+      ['控制台已挂载', d.console_mounted ? '<span class="badge b-green">是</span>' : '<span class="badge b-red">否（web/console.html 缺失）</span>'],
+      ['批次数', disp(d.n_runs)],
+      ['真值集条目', disp(d.n_golden)],
+      ['待审条目', disp(d.n_pending)],
+      ['Schemas', (d.schemas||[]).length ? (d.schemas||[]).map(s=>'<span class="pill">'+esc(s)+'</span>').join('') : '<span class="faint">—</span>']
+    ]);
+  }catch(e){
+    fail(hb, e.message);
+  }
+  try{
+    const m = await api('/meta');
+    META = m;
+    const list = (arr)=> (arr||[]).map(x=>'<span class="pill">'+esc(x)+'</span>').join('') || '<span class="faint">—</span>';
+    mb.innerHTML =
+        '<div class="k" style="font-size:11px;color:var(--muted);margin-bottom:5px">处置语义</div>'
+      + Object.entries(m.dispositions||{}).map(([k,v])=>
+          '<div style="margin:3px 0">'+dispBadge(k)+' <span class="mono faint" style="font-size:11px">'+esc(k)+'</span></div>').join('')
+      + '<div class="hr"></div><div class="k" style="font-size:11px;color:var(--muted);margin-bottom:5px">风险等级</div>'
+      + list(m.risks)
+      + '<div class="hr"></div><div class="k" style="font-size:11px;color:var(--muted);margin-bottom:5px">流程步骤</div>'
+      + Object.entries(m.steps||{}).map(([k,v])=>'<span class="pill">'+esc(v)+'</span>').join('')
+      + '<div class="hr"></div><div class="k" style="font-size:11px;color:var(--muted);margin-bottom:5px">工具</div>'
+      + Object.entries(m.tools||{}).map(([k,v])=>'<span class="pill">'+esc(v)+'</span>').join('')
+      + '<div class="hr"></div><div class="k" style="font-size:11px;color:var(--muted);margin-bottom:5px">字段分组</div>'
+      + list(m.ppe_items) + list(m.pose_items) + list(m.attr_items);
+  }catch(e){
+    fail(mb, e.message);
+  }
+}
+
+/* ---------- 连接状态 ---------- */
+async function ping(){
+  const b = $('footStatus');
+  try{
+    const d = await api('/health');
+    b.innerHTML = '<span class="badge b-green">接口正常</span>';
+    b.title = '项目：'+disp(d.project)+' · 批次 '+disp(d.n_runs)+' · 待审 '+disp(d.n_pending);
+    $('footHost').textContent = '/api · 只读';
+    $('navPendingN').innerHTML = d.n_pending>0
+      ? '<span class="badge b-violet" style="margin-left:6px">'+d.n_pending+'</span>' : '';
+  }catch(e){
+    b.innerHTML = '<span class="badge b-red">接口不可达</span>';
+    $('footHost').textContent = '/api（请启动服务）';
+  }
+}
+
+/* ---------- 启动 ---------- */
+(async function(){
+  await ping();
+  try{ META = await api('/meta'); }catch(e){}
+  nav('overview');
+  setInterval(ping, 30000);
+})();
+</script>
+</body>
+</html>
