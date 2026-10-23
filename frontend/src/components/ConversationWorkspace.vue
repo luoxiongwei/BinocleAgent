@@ -113,7 +113,7 @@ async function send() {
 </template>
 
 <style scoped>
-.conversation-workspace { max-width: 980px; margin: 0 auto; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); overflow: hidden; }
+.conversation-workspace { max-width: 980px; margin: 0 auto; border: 1px solid var(--line); border-radius: 14px; background: rgba(255, 255, 255, 0.02); overflow: hidden; }
 .conversation-head { display:flex; justify-content:space-between; align-items:center; padding:22px 26px; border-bottom:1px solid var(--line); }
 .head-actions { display:flex; align-items:center; gap:12px; }.new-session { font-size:12px; padding:6px 10px; }
 .recent-panel { border-bottom:1px solid #303842; padding:12px 24px; background:#171c21; max-height:220px; overflow:auto; }

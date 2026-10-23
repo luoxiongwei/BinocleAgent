@@ -17,7 +17,7 @@
 .agent-task-row .row-meta{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end}
 .chain,.chain-node,.chain-facts,.chain-detail,.clause-quote{min-width:0;max-width:100%;overflow-wrap:anywhere;word-break:break-word}
 .chain .tag-mono{display:inline-block;max-width:100%;white-space:normal;overflow-wrap:anywhere;word-break:break-word;vertical-align:top}
-.task-workspace{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:var(--sp-4) var(--sp-5)}
+.task-workspace{background:rgba(12,18,16,.63);border:1px solid var(--line);border-radius:12px;padding:var(--sp-4) var(--sp-5)}
 /* 注：TaskView 内部自带 .task-workspace 卡片（tab 容器 .task-shell 只做布局，不加边框，避免双层框） */
 .task-workspace>.section-head{margin-top:var(--sp-4);margin-bottom:var(--sp-2);padding-bottom:var(--sp-2);border-bottom:1px solid var(--line)}
 .task-workspace>.section-head:first-child{margin-top:0}

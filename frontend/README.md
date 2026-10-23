@@ -78,4 +78,15 @@ artwork 与 @hugeicons 依赖）。四张能力卡共享一个全局光斑坐标
 影像淡入 0→60%（700ms）→ 辉光 900ms 淡入 + 文案上浮（80ms 延迟）→ 粒子启用并卷入 → 能力卡 80ms/张错峰。
 视频不可用时不阻塞：超时后照常进场。
 
+工作区背景层 `GhostFibers.vue`：React Bits 的 GhostFibers 移植为 Vue 3（真三维丝带 + 5 级 bloom 降/升采样 +
+景深散景 + 浮尘，WebGL2）。**全站只挂一层**（`App.vue` 的 `.app-backdrop`，`sticky` 定在视口高），
+四个页面共用——KeepAlive 下若按页挂载会同时存在 4 个 WebGL 上下文。
+调参取向：`scale 2.6 / rotation 38 / waves 2.2` 让它成为一条斜向扫光而非居中光斑；
+`thickness .4 + depthOfField 1.25` 让光点小而亮（景深会放大点径，两者必须同步收）；
+`hoverEffect none` 不抢指针、`pulseOnClick false` 不干扰点击、`:dpr="1"` 降一半渲染像素。
+
+面板为毛玻璃：`rgba(12,18,16,.63)` + `backdrop-filter: blur(12px)`（KPI 用 .58）。
+**不要给外层容器再叠一层 `backdrop-filter`** —— 嵌套模糊会成倍放大开销，弱机直接卡死。
+`prefers-reduced-motion` 下只静态渲染一帧。
+
 改主题只改 `style.css` 的 `:root`；组件内联样式已全部改为 token 引用，新增组件请同样只用 token。

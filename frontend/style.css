@@ -95,18 +95,39 @@ button:focus:not(:focus-visible) { outline: none; }
 }
 
 .app-main {
+  position: relative;
   min-width: 0;
   display: flex;
   flex-direction: column;
   border-left: 1px solid var(--line);
   /* 监视器底：顶部信号绿冷光 + 极细图纸网格（与落地页 25/50/75 轴线同语言） */
   background:
-    radial-gradient(1100px 520px at 76% -12%, rgba(94, 210, 156, 0.08), transparent 62%),
+    radial-gradient(1100px 560px at 76% -12%, rgba(94, 210, 156, 0.13), transparent 64%),
+    radial-gradient(900px 520px at 8% 108%, rgba(63, 174, 134, 0.09), transparent 62%),
     repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.014) 0 1px, transparent 1px 96px),
     var(--bg);
 }
 
+/* 工作区背景层：虚化纤维（sticky 定在视口高，长页面不撑大 canvas） */
+.app-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 1;
+  filter: brightness(1.18) saturate(1.06);
+}
+
+.app-backdrop > * {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+
 .app-content {
+  position: relative;
+  z-index: 1;
   padding: var(--sp-6) var(--sp-7) var(--sp-7);
   max-width: 1720px;
   width: 100%;
@@ -337,9 +358,12 @@ button:focus:not(:focus-visible) { outline: none; }
 
 /* ============ 面板（分区而非万物皆卡片） ============ */
 .panel {
+  /* 毛玻璃：背景纤维经模糊后透出，正文仍压在独立图层上保持清晰 */
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.028), rgba(255, 255, 255, 0.008)),
-    var(--surface);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.012)),
+    rgba(12, 18, 16, 0.63);
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
   border: 1px solid var(--line);
   border-radius: 12px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
@@ -376,8 +400,10 @@ button:focus:not(:focus-visible) { outline: none; }
 
 .kpi {
   background:
-    radial-gradient(120% 140% at 0% 0%, rgba(94, 210, 156, 0.07), transparent 55%),
-    var(--surface);
+    radial-gradient(120% 140% at 0% 0%, rgba(94, 210, 156, 0.08), transparent 55%),
+    rgba(12, 18, 16, 0.58);
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
   padding: var(--sp-4) var(--sp-5);
   display: flex;
   flex-direction: column;
@@ -583,7 +609,7 @@ button.data-row {
 }
 
 .data-row:last-child { border-bottom: 0; }
-.data-row:hover { background: var(--surface-2); }
+.data-row:hover { background: rgba(255, 255, 255, 0.045); }
 .data-row.selected { background: var(--surface-2); box-shadow: inset 3px 0 0 var(--accent); }
 
 .row-id { font-family: var(--font-mono); font-size: 13.5px; font-weight: 600; }
@@ -888,7 +914,8 @@ button.data-row {
   display: flex; align-items: center; gap: 6px;
   padding: 9px var(--sp-4) 7px;
   font-size: 12px; font-weight: 700; letter-spacing: 0.05em; color: var(--text-dim);
-  background: var(--surface); border-bottom: 1px solid var(--line);
+  background: rgba(12, 18, 16, 0.72); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
   position: sticky; top: 0; z-index: 1;
 }
 .queue-group-head .mono { font-family: var(--font-mono); font-size: 11.5px; font-weight: 400; color: var(--text-faint); }
@@ -896,7 +923,7 @@ button.data-row {
 .queue-row { display: block; width: 100%; border: 0; background: transparent; text-align: left; cursor: pointer;
   padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--line); transition: background var(--dur) var(--ease-out); }
 .queue-row:last-child { border-bottom: 0; }
-.queue-row:hover { background: var(--surface-2); }
+.queue-row:hover { background: rgba(255, 255, 255, 0.045); }
 .queue-row.selected { background: var(--surface-2); box-shadow: inset 3px 0 0 var(--accent); }
 
 .queue-row-top { display: flex; align-items: center; gap: var(--sp-2); margin-bottom: 4px; }

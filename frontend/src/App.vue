@@ -8,6 +8,7 @@ import ConsoleView from './components/ConsoleView.vue'
 import ReviewDesk from './components/ReviewDesk.vue'
 import BatchView from './components/BatchView.vue'
 import LandingView from './components/LandingView.vue'
+import GhostFibers from './components/GhostFibers.vue'
 import TaskWorkspace from './components/TaskWorkspace.vue'
 
 const VIEW_META = {
@@ -143,6 +144,40 @@ onUnmounted(() => {
     />
 
     <div class="app-main">
+      <!-- 工作区背景：虚化的纤维粒子层（四个页面共用一层，避免 KeepAlive 下多开 WebGL 上下文） -->
+      <div class="app-backdrop" aria-hidden="true">
+        <GhostFibers
+          glow-color="#3fae86"
+          secondary-color="#0f3a2f"
+          line-color="#8fe7c4"
+          gradient="depth"
+          :layers="3"
+          :threads="40"
+          :density="0.7"
+          :thickness="0.4"
+          :waves="2.2"
+          :twist="1.4"
+          :scale="2.6"
+          :spread="1.35"
+          :rotation="38"
+          :perspective="0.7"
+          :speed="0.16"
+          :roll-speed="0.05"
+          :flow="0.18"
+          :depth-of-field="1.25"
+          :focus-depth="0.2"
+          :particles="0.42"
+          :sparkle="0.55"
+          :glow="1.2"
+          :brightness="1.4"
+          :vignette="0.6"
+          :grain="0.04"
+          hover-effect="none"
+          :pulse-on-click="false"
+          :dpr="1"
+        />
+      </div>
+
       <TopBar
         :title="VIEW_META[active].title"
         :eyebrow="VIEW_META[active].eyebrow"
