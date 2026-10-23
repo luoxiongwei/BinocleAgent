@@ -85,11 +85,13 @@ def _find_pair(pair_id: str, source_dir: Path) -> tuple[Path, Path]:
     return ir_path, rgb_path
 
 
-def prepare_pair(pair_id: str, project: Path | None = None) -> dict[str, Any]:
-    """标准化并尝试自动配准一对 RGB/IR，写入生产 fused/panels/QC 产物。"""
+def prepare_pair(pair_id: str, project: Path | None = None,
+                 run_dir: str | Path | None = None,
+                 source_dir: str | Path | None = None) -> dict[str, Any]:
+    """标准化并尝试自动配准一对 RGB/IR，写入本次任务的产物目录。"""
     root = Path(project or project_root())
-    source_dir = root / "data" / "rgbt" / "output"
-    ir_path, rgb_path = _find_pair(pair_id, source_dir)
+    source = Path(source_dir) if source_dir else root / "data" / "rgbt" / "output"
+    ir_path, rgb_path = _find_pair(pair_id, source)
     ir_native, rgb_native = _read(ir_path), _read(rgb_path)
     if ir_native is None or rgb_native is None:
         raise ValueError(f"{pair_id} 原图读取失败")
@@ -123,8 +125,9 @@ def prepare_pair(pair_id: str, project: Path | None = None) -> dict[str, Any]:
 
     fused = (ALPHA_VIS * rgb_gray.astype(np.float32)
              + (1.0 - ALPHA_VIS) * ir_gray.astype(np.float32)).astype(np.uint8)
-    fused_path = root / "results" / "fused" / f"{pair_id}.jpg"
-    panels_dir = root / "results" / "panels"
+    artifact_root = Path(run_dir) if run_dir else root / "results"
+    fused_path = artifact_root / "fused" / f"{pair_id}.jpg"
+    panels_dir = artifact_root / "panels"
     _write(fused_path, fused)
     _write(panels_dir / f"{pair_id}_vis.jpg", aligned_rgb)
     _write(panels_dir / f"{pair_id}_ir.jpg", ir)
@@ -145,7 +148,7 @@ def prepare_pair(pair_id: str, project: Path | None = None) -> dict[str, Any]:
         },
         "edge_align": round(after, 4),
     }
-    qc_path = root / "results" / "fuse_qc.json"
+    qc_path = artifact_root / "fuse_qc.json"
     try:
         qc = json.loads(qc_path.read_text(encoding="utf-8")) if qc_path.is_file() else {}
     except (OSError, json.JSONDecodeError):

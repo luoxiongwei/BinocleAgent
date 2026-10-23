@@ -19,6 +19,8 @@ Step-2 规划器将替换 perceive→…→judge 的固定序列为有界 ReAct 
 from __future__ import annotations
 
 import json
+import threading
+from functools import wraps
 import cv2
 from datetime import datetime, timezone
 from pathlib import Path
@@ -31,15 +33,27 @@ from agent.outcome import FAILED, VALID_RISKS, classify_outcome, disposition_for
 from agent.planner import _open_conflicts as open_conflicts
 from agent.planner import run_planning
 from agent.tools_registry import call as default_call
+from agent.case_memory import search_cases, summarize_memory_guidance
 from tools.common import project_root, save_json
 
 PROJECT = project_root()
 PENDING_PATH = PROJECT / "results" / "agent" / "pending_reviews.json"
 HUMAN_ARCHIVE_PATH = PROJECT / "results" / "agent" / "human_archives.json"
+_SHARED_RECORDS_LOCK = threading.RLock()
+
+
+def _shared_records_locked(fn):
+    """Serialize read-modify-write updates to shared agent JSON records."""
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        with _SHARED_RECORDS_LOCK:
+            return fn(*args, **kwargs)
+    return wrapper
 
 
 # ---------- 待审队列（转人工=任务已完成的终态之一，verdict 异步回写） ----------
 
+@_shared_records_locked
 def _record_work_type_memory(state: dict[str, Any]) -> dict[str, Any] | None:
     scene = state.get("scene") or {}
     summary = scene.get("scene") or {}
@@ -60,6 +74,7 @@ def _record_work_type_memory(state: dict[str, Any]) -> dict[str, Any] | None:
     return record
 
 
+@_shared_records_locked
 def register_pending_review(values: dict[str, Any]) -> None:
     """登记待审条目（按 task_id 幂等）。
 
@@ -118,6 +133,7 @@ def mark_review_resolved(task_id: str) -> bool:
     return hit
 
 
+@_shared_records_locked
 def register_human_archive(values: dict[str, Any]) -> None:
     """记录离线转人工归档，不进入实时待审队列。"""
     path = HUMAN_ARCHIVE_PATH
@@ -340,8 +356,23 @@ def make_nodes(tool_call: Callable[..., dict] = default_call,
         return patch
 
     def node_judge(state: GraphState) -> dict[str, Any]:
-        res = tool_call("evaluate_risk", state.get("scene") or {})
+        scene = state.get("scene") or {}
+        scene_for_judge = dict(scene)
+        if state.get("qa_context"):
+            # Explicitly carry the user's prior clause question into the judge;
+            # downstream rules still retain authority over the final risk.
+            scene_for_judge["qa_context"] = state.get("qa_context")
+        summary = scene.get("scene") if isinstance(scene.get("scene"), dict) else {}
+        query = " ".join(str(value) for value in (
+            summary.get("dominant_state"), summary.get("site_type"), summary.get("description")) if value)
+        case_memories = search_cases(query, work_type=summary.get("dominant_state"),
+                                     site_type=summary.get("site_type"), limit=3)
+        res = tool_call("evaluate_risk", scene_for_judge)
         rule = res.get("data") or {}
+        memory_guidance = summarize_memory_guidance(case_memories, rule.get("overall_risk"))
+        rule["_memory_reference"] = {"count": len(case_memories),
+                                      "memory_ids": [item.get("memory_id") for item in case_memories],
+                                      "guidance": memory_guidance}
         route = "full"
         if rule.get("need_human_review"):
             route = "manual"
@@ -351,7 +382,7 @@ def make_nodes(tool_call: Callable[..., dict] = default_call,
             route = "manual" if open_conflicts(state) else "archive"
         elif rule.get("overall_risk") == "低风险":
             route = "tip"
-        return {"rule": rule, "route": route, "steps": ["JUDGE"],
+        return {"rule": rule, "case_memories": case_memories, "route": route, "steps": ["JUDGE"],
                 **_log("evaluate_risk", res, route=route)}
 
     def node_archive(state: GraphState) -> dict[str, Any]:

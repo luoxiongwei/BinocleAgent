@@ -27,6 +27,10 @@ $logDir = Join-Path $projectDir 'results/debug_stack'
 $statePath = Join-Path $logDir 'processes.json'
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 
+# 任务服务默认启用受控并发；调用方可在启动前设置 GDYOLO_MAX_WORKERS=1..5。
+# 不在这里强行覆盖已有环境变量，便于 CPU 机器按资源调整。
+if (-not $env:GDYOLO_MAX_WORKERS) { $env:GDYOLO_MAX_WORKERS = '2' }
+
 # --- 清理两级大小写代理变量（沙箱/企业代理残留会打死 api.deepseek.com 直连）---
 foreach ($n in @('HTTP_PROXY','http_proxy','HTTPS_PROXY','https_proxy','ALL_PROXY','all_proxy')) {
     try { [Environment]::SetEnvironmentVariable($n, $null, 'Process') } catch {}
@@ -58,7 +62,9 @@ function Resolve-Python {
         # into separate arguments (Start-Process caused valid interpreters to
         # be rejected during the one-click startup check).
         & $exe '-c' 'import torch, fastapi, uvicorn' 1>$null 2>$null
-        if ($LASTEXITCODE -eq 0) { return $exe }
+        # Native Windows executables may leave $LASTEXITCODE empty in a
+        # PowerShell child process; $? is the reliable success flag here.
+        if ($?) { return $exe }
         Write-Host "[warn] $exe 无法 import torch/fastapi/uvicorn，尝试下一个候选" -ForegroundColor Yellow
     }
     return $null
@@ -86,7 +92,9 @@ if ($Action -in @('start','restart')) {
 $services = @(
     @{name='console';port=8010;url='http://127.0.0.1:8010/api/health';exe=$pythonExe;args=@('-m','uvicorn','agent.api_web:standalone','--host','127.0.0.1','--port','8010');cwd=$projectDir},
     @{name='agent';port=8000;url='http://127.0.0.1:8000/health';exe=$pythonExe;args=@('-m','uvicorn','agent.service:app','--host','127.0.0.1','--port','8000');cwd=$projectDir},
-    @{name='frontend';port=5173;url='http://127.0.0.1:5173/';exe='npm.cmd';args=@('run','dev','--','--host','127.0.0.1','--port','5173','--strictPort');cwd=(Join-Path $projectDir 'frontend')}
+    # Invoke Vite's CLI through node directly.  This avoids npm.cmd/PATH
+    # resolution differences when Start-Process runs as a hidden process.
+    @{name='frontend';port=5173;url='http://127.0.0.1:5173/';exe=(Resolve-ExePath 'node.exe');args=@((Join-Path $projectDir 'frontend/node_modules/vite/bin/vite.js'),'--host','127.0.0.1','--port','5173','--strictPort');cwd=(Join-Path $projectDir 'frontend')}
 )
 function Healthy([string]$url) {
     try { return (Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 3).StatusCode -eq 200 } catch { return $false }

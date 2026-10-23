@@ -22,7 +22,7 @@ const items = [
 <template>
   <aside class="side-nav">
     <div class="brand">
-      <span class="brand-mark"><IconShield /></span>
+      <span class="brand-mark"><img src="/binocle-logo.svg" alt="Binocle" width="26" height="26" /></span>
       <div>
         <div class="brand-name">Binocle</div>
       </div>

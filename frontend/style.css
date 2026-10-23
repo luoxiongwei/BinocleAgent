@@ -1,43 +1,43 @@
 /* ============================================================
-   GDYOLO 双光安护理台 · 设计系统
-   方向：工业控制室 / 安全监督台 —— 深炭灰底、安全橙主色、
-   规范条文式证据链。展示标题用宋体（规范文件的权威感），
-   正文用系统黑体，编号/规则号用等宽。
+   GDYOLO 双光安护理台 · 设计系统 v2（2026-10-23 重构）
+   方向：夜视监视器 / 安全监视台 —— 近黑底、薄荷绿信号色、
+   图纸细网格、液体玻璃铭牌。展示标题用衬线（规范文件权威感），
+   正文用无衬线，编号/规则号用等宽。
    ============================================================ */
 
 :root {
-  /* —— 色彩：深色工业控制台 —— */
-  --bg: #15181b;
-  --bg-deep: #101317;
-  --surface: #1c2024;
-  --surface-2: #23282d;
-  --surface-3: #2a2f35;
-  --line: #2e343a;
-  --line-strong: #3c434a;
-  --text: #e9e6e0;
-  --text-dim: #a8a49b;
-  --text-faint: #6f6d68;
+  /* —— 色彩：近黑监视器 —— */
+  --bg: #070b0a;
+  --bg-deep: #050807;
+  --surface: #0c1211;
+  --surface-2: #111917;
+  --surface-3: #17201d;
+  --line: rgba(255, 255, 255, 0.09);
+  --line-strong: rgba(255, 255, 255, 0.18);
+  --text: #eef3f0;
+  --text-dim: rgba(238, 243, 240, 0.66);
+  --text-faint: rgba(238, 243, 240, 0.44);
 
-  /* —— 主色：安全橙 —— */
-  --accent: #ff7a1a;
-  --accent-strong: #ff9340;
-  --accent-dim: #b85a16;
-  --accent-wash: #ff7a1a1f;
+  /* —— 主色：信号薄荷绿 —— */
+  --accent: #5ed29c;
+  --accent-strong: #86e3ba;
+  --accent-dim: #63b892;
+  --accent-wash: rgba(94, 210, 156, 0.12);
 
   /* —— 语义色（与处置档位一一对应） —— */
-  --danger: #f04b3e;   /* P1_auto_alert · 高风险强制告警 */
-  --danger-wash: #f04b3e1f;
-  --warn: #f0a928;     /* TIP_optional · 低风险可选提示 */
-  --warn-wash: #f0a9281f;
-  --safe: #43bf7e;     /* P4_archive · 安全归档 */
-  --safe-wash: #43bf7e1f;
-  --manual: #5aa9e6;   /* P3_manual_judge · 转人工待裁定 */
-  --manual-wash: #5aa9e61f;
-  --gold: #c9a86a;     /* 专家真值 */
+  --danger: #f4736a;   /* P1_auto_alert · 高风险强制告警 */
+  --danger-wash: rgba(244, 115, 106, 0.12);
+  --warn: #e9b55c;     /* TIP_optional · 低风险可选提示 */
+  --warn-wash: rgba(233, 181, 92, 0.12);
+  --safe: #5ed29c;     /* P4_archive · 安全归档 */
+  --safe-wash: rgba(94, 210, 156, 0.12);
+  --manual: #86b6f0;   /* P3_manual_judge · 转人工待裁定 */
+  --manual-wash: rgba(134, 182, 240, 0.12);
+  --gold: #cbb488;     /* 专家真值 */
 
   /* —— 字体 —— */
-  --font-display: "Noto Serif SC", "Source Han Serif SC", "Songti SC", STSong, SimSun, serif;
-  --font-body: "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+  --font-display: "Instrument Serif", "Noto Serif SC", "Source Han Serif SC", "Songti SC", STSong, SimSun, serif;
+  --font-body: "Inter", "Plus Jakarta Sans", "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "Cascadia Mono", Consolas, "Courier New", monospace;
 
   /* —— 字号（流式） —— */
@@ -74,7 +74,7 @@ body {
 
 #app { min-height: 100vh; }
 
-::selection { background: var(--accent); color: #1a0e02; }
+::selection { background: var(--accent); color: #04120b; }
 
 /* 细滚动条 */
 * { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
@@ -99,8 +99,11 @@ button:focus:not(:focus-visible) { outline: none; }
   display: flex;
   flex-direction: column;
   border-left: 1px solid var(--line);
+  /* 监视器底：顶部信号绿冷光 + 极细图纸网格（与落地页 25/50/75 轴线同语言） */
   background:
-    linear-gradient(180deg, #171a1e 0, var(--bg) 360px);
+    radial-gradient(1100px 520px at 76% -12%, rgba(94, 210, 156, 0.08), transparent 62%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.014) 0 1px, transparent 1px 96px),
+    var(--bg);
 }
 
 .app-content {
@@ -139,15 +142,17 @@ button:focus:not(:focus-visible) { outline: none; }
   gap: 13px;
 }
 
+/* 品牌标识：owl 标志为深色主体，浅色底衬保证近黑背景下可读（2026-10-23） */
 .brand-mark {
   width: 38px; height: 38px;
   flex: none;
   display: grid;
   place-items: center;
-  background: var(--accent);
-  color: #20120a;
-  clip-path: polygon(50% 0, 100% 22%, 100% 74%, 50% 100%, 0 74%, 0 22%);
+  background: #eef3f0;
+  border-radius: 11px;
+  padding: 5px;
 }
+.brand-mark img { width: 100%; height: 100%; object-fit: contain; display: block; }
 
 .brand-name {
   font-family: var(--font-display);
@@ -260,8 +265,8 @@ button:focus:not(:focus-visible) { outline: none; }
   align-items: center;
   gap: var(--sp-4);
   padding: var(--sp-4) var(--sp-7);
-  background: #171a1ecc;
-  backdrop-filter: blur(10px);
+  background: rgba(7, 11, 10, 0.74);
+  backdrop-filter: blur(14px) saturate(120%);
   border-bottom: 1px solid var(--line);
 }
 
@@ -332,9 +337,12 @@ button:focus:not(:focus-visible) { outline: none; }
 
 /* ============ 面板（分区而非万物皆卡片） ============ */
 .panel {
-  background: var(--surface);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.028), rgba(255, 255, 255, 0.008)),
+    var(--surface);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 12px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .panel-head {
@@ -367,13 +375,38 @@ button:focus:not(:focus-visible) { outline: none; }
 }
 
 .kpi {
-  background: var(--surface);
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgba(94, 210, 156, 0.07), transparent 55%),
+    var(--surface);
   padding: var(--sp-4) var(--sp-5);
   display: flex;
   flex-direction: column;
   gap: 2px;
   position: relative;
+  overflow: hidden;
+  --mx: 50%;
+  --my: 0%;
 }
+
+/* 指针聚光（Spotlight Card）：悬停时跟随光斑，离开淡出 */
+.kpi::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    220px circle at var(--mx) var(--my),
+    rgba(94, 210, 156, 0.1),
+    transparent 72%
+  );
+  opacity: 0;
+  transition: opacity 220ms var(--ease-out);
+}
+
+.kpi:hover::before { opacity: 1; }
+
+/* 内容压在聚光层之上，避免光斑染色数字 */
+.kpi > * { position: relative; z-index: 1; }
 
 .kpi::after {
   content: "";
@@ -410,12 +443,12 @@ button:focus:not(:focus-visible) { outline: none; }
 
 .pill .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 
-.pill-danger { background: var(--danger-wash); color: var(--danger); border-color: #f04b3e40; }
-.pill-warn { background: var(--warn-wash); color: var(--warn); border-color: #f0a92840; }
-.pill-safe { background: var(--safe-wash); color: var(--safe); border-color: #43bf7e40; }
-.pill-manual { background: var(--manual-wash); color: var(--manual); border-color: #5aa9e640; }
+.pill-danger { background: var(--danger-wash); color: var(--danger); border-color: rgba(244, 115, 106, 0.28); }
+.pill-warn { background: var(--warn-wash); color: var(--warn); border-color: rgba(233, 181, 92, 0.28); }
+.pill-safe { background: var(--safe-wash); color: var(--safe); border-color: rgba(94, 210, 156, 0.28); }
+.pill-manual { background: var(--manual-wash); color: var(--manual); border-color: rgba(134, 182, 240, 0.28); }
 .pill-muted { background: var(--surface-3); color: var(--text-dim); border-color: var(--line-strong); }
-.pill-gold { background: #c9a86a1a; color: var(--gold); border-color: #c9a86a40; }
+.pill-gold { background: rgba(203, 180, 136, 0.1); color: var(--gold); border-color: rgba(203, 180, 136, 0.26); }
 
 .tag-mono {
   font-family: var(--font-mono);
@@ -459,11 +492,11 @@ button:focus:not(:focus-visible) { outline: none; }
 
 .btn:active { transform: translateY(1px); }
 
-.btn-primary { background: var(--accent); color: #20120a; }
+.btn-primary { background: var(--accent); color: #04120b; }
 .btn-primary:hover:not(:disabled) { background: var(--accent-strong); }
 
-.btn-secondary { background: var(--surface-3); color: var(--text); border-color: var(--line-strong); }
-.btn-secondary:hover:not(:disabled) { background: #32383e; }
+.btn-secondary { background: var(--surface-2); color: var(--text); border-color: var(--line-strong); }
+.btn-secondary:hover:not(:disabled) { background: var(--surface-3); }
 
 .btn-ghost { background: transparent; color: var(--text-dim); border-color: var(--line-strong); }
 .btn-ghost:hover:not(:disabled) { color: var(--text); border-color: var(--accent); }
@@ -580,9 +613,9 @@ button.data-row {
   border: 1px solid;
 }
 
-.alert-error { background: var(--danger-wash); border-color: #f04b3e40; color: #ffb3ac; }
-.alert-success { background: var(--safe-wash); border-color: #43bf7e40; color: #a9ecc9; }
-.alert-info { background: var(--manual-wash); border-color: #5aa9e640; color: #b5d9f5; }
+.alert-error { background: var(--danger-wash); border-color: rgba(244, 115, 106, 0.28); color: #f9b6b0; }
+.alert-success { background: var(--safe-wash); border-color: rgba(94, 210, 156, 0.28); color: #a9ecc9; }
+.alert-info { background: var(--manual-wash); border-color: rgba(134, 182, 240, 0.28); color: #b5d9f5; }
 
 /* ============ Toast ============ */
 .toast-host {

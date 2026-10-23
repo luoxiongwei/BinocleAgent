@@ -208,15 +208,44 @@ def sanitize_field_values(obj) -> int:
     for t in obj.get("targets", []) or []:
         if not isinstance(t, dict):
             continue
+        confirmed = t.get("confirmed_by")
+        if isinstance(confirmed, list):
+            labels = {str(x).lower() for x in confirmed}
+            if {"rgb", "ir"} <= labels or {"visible", "infrared"} <= labels:
+                t["confirmed_by"] = "both"
+            elif labels & {"rgb", "visible"}:
+                t["confirmed_by"] = "rgb"
+            elif labels & {"ir", "infrared"}:
+                t["confirmed_by"] = "ir"
+            else:
+                t["confirmed_by"] = "both"
+            coerced += 1
         for group in _FLAG_GROUPS:
             for v in (t.get(group) or {}).values():
-                if isinstance(v, dict) and v.get("value") is not None \
+                if not isinstance(v, dict):
+                    continue
+                # Keep the persisted scene aligned with the strict schema;
+                # free-form VLM evidence belongs in the surrounding report,
+                # not inside a boolean PPE field.
+                for extra in tuple(k for k in v if k not in {"value", "confidence", "color"}):
+                    del v[extra]
+                    coerced += 1
+                if v.get("value") is not None \
                         and not isinstance(v.get("value"), bool):
                     v["value"] = None
                     v["confidence"] = 0
                     coerced += 1
         es = t.get("equipment_state")
-        if isinstance(es, dict) and es.get("value") not in (*_EQUIP_VALUES, None):
+        # Schema requires an equipment_state object for every target.  Some
+        # VLM responses omit it or emit null (especially for worker targets);
+        # preserve the uncertainty explicitly instead of writing invalid JSON.
+        if "equipment_state" not in t:
+            continue
+        if not isinstance(es, dict):
+            t["equipment_state"] = {"value": "不确定", "confidence": 0}
+            coerced += 1
+            continue
+        if es.get("value") not in (*_EQUIP_VALUES, None):
             es["value"] = "不确定"
             es["confidence"] = 0
             coerced += 1

@@ -7,8 +7,8 @@ import TopBar from './components/TopBar.vue'
 import ConsoleView from './components/ConsoleView.vue'
 import ReviewDesk from './components/ReviewDesk.vue'
 import BatchView from './components/BatchView.vue'
-import TaskView from './components/TaskView.vue'
 import LandingView from './components/LandingView.vue'
+import TaskWorkspace from './components/TaskWorkspace.vue'
 
 const VIEW_META = {
   home: { title: 'Binocle安全日志Agent', eyebrow: 'BINOCLE SAFETY LOG AGENT' },
@@ -25,11 +25,12 @@ const healthAgent = ref(null) // 8000
 const healthConsole = ref(null) // 8010 /api/health
 const overview = ref({})
 const taskArchives = ref([])
+const batches = ref([])
 const pending = ref([])
 const archives = ref([])
 const toasts = ref([])
 const reviewFocus = ref('')
-const taskView = ref(null) // TaskView 模板 ref：总览台下钻用命令式 loadTask（见 TaskView 注释）
+const taskView = ref(null) // TaskWorkspace 模板 ref（内部转发到 TaskView.loadTask），总览台下钻用
 // 档案管理跳转携带（2026-10-17）：{ tab: 'live'|'history', run, task, date }
 const archiveFocus = ref({})
 
@@ -58,13 +59,14 @@ function notify(message, type = 'info') {
 async function refreshAll() {
   loading.value = true
   try {
-    const [ha, hc, ov, ta, pd, ar] = await Promise.allSettled([
+    const [ha, hc, ov, ta, pd, ar, bs] = await Promise.allSettled([
       api.health(),
       api.consoleHealth(),
       api.overview(),
       api.taskArchives(),
       api.pending(),
       api.humanArchives(),
+      api.batches(),
     ])
     healthAgent.value = ha.status === 'fulfilled' ? ha.value : null
     healthConsole.value = hc.status === 'fulfilled' ? hc.value : null
@@ -72,6 +74,7 @@ async function refreshAll() {
     if (ta.status === 'fulfilled') taskArchives.value = ta.value.tasks || []
     if (pd.status === 'fulfilled') pending.value = (pd.value.entries || []).filter((e) => !e.resolved)
     if (ar.status === 'fulfilled') archives.value = ar.value.entries || []
+    if (bs.status === 'fulfilled') batches.value = bs.value.batches || []
     if (ha.status === 'rejected') notify('任务服务 :8000 未连接', 'err')
     await loadInputs()
   } finally {
@@ -129,7 +132,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <LandingView v-if="active === 'home'" @start="navigate('task')" />
+  <LandingView v-if="active === 'home'" @start="navigate('task')" @navigate="navigate" />
   <div v-else class="app-shell">
     <SideNav
       :active="active"
@@ -176,18 +179,14 @@ onUnmounted(() => {
           <BatchView
             v-else-if="active === 'batches'"
             :agent-tasks="taskArchives"
+            :batches="batches"
             :overview="overview"
             :pending="pending"
             :focus="archiveFocus"
             @notify="notify"
             @goto-review="gotoReview"
           />
-          <TaskView
-            v-else
-            ref="taskView"
-            @notify="notify"
-            @goto-review="gotoReview"
-          />
+          <TaskWorkspace v-else ref="taskView" @notify="notify" @goto-review="gotoReview" />
         </KeepAlive>
       </main>
     </div>

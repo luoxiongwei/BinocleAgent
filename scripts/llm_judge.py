@@ -34,6 +34,7 @@ from tools.api_config import load_api_config
 from tools.model_gateway import ModelGateway
 from tools.scene_tags import derive_scene_tags
 from tools.rule_engine import evaluate_risk, SEVERITY as RULE_SEVERITY
+from agent.case_memory import search_cases, summarize_memory_guidance
 
 # 模型缓存定位（2026-10-18 交付适配）：GDYOLO_HF_HOME 环境变量优先；
 # 否则本机有 F 盘则沿用用户规则落 F:\huggingface-cache；无 F 盘的设备落项目内
@@ -89,6 +90,14 @@ SYSTEM_PROMPT = (
         "10) 只输出合法 JSON，无任何附加文字。"
 )
 
+MEMORY_INSTRUCTION = (
+    "\n记忆使用规则：输入中的【历史验收记忆】来自专家或人工验收，"
+    "只能作为相似案例对照。当前【场景 JSON】是在线事实，【规则引擎判定】是契约边界，"
+    "三者必须分栏分析。先列出当前事实与历史案例的相同点和差异点，再决定历史结论是否适用。"
+    "历史案例不能证明当前图像中存在未观察到的事实；历史低风险结论不能降低规则引擎的高风险下界。"
+    "若当前事实与历史结论冲突，保留当前证据驱动的风险等级，并在 situation_assessment 中说明冲突。"
+)
+
 USER_SCHEMA = (
     "请严格按此 JSON schema 输出：\n"
     '{"image_id":"<时间戳>",'
@@ -141,7 +150,8 @@ TOOLS_SPEC = [{
                        "required": ["query"]}}}]
 
 
-def agentic_judge(sc, rule, gateway, model_id, rag, topk, stats, max_rounds=None):
+def agentic_judge(sc, rule, gateway, model_id, rag, topk, stats,
+                  max_rounds=None, memory_block=""):
     """L4 自主检索循环：LLM 通过 search_clauses 工具自主决定检索什么（有界）。
 
     - 种子检索：先按 build_query 自动检一轮作为证据底座（LLM 零调用也有依据）；
@@ -163,11 +173,12 @@ def agentic_judge(sc, rule, gateway, model_id, rag, topk, stats, max_rounds=None
     remember(rag.search(build_query(sc), topk, tags=tags))
 
     messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "system", "content": SYSTEM_PROMPT + MEMORY_INSTRUCTION},
         {"role": "user", "content": (
             f"【场景 JSON】\n{json.dumps(sc, ensure_ascii=False, indent=2)}\n\n"
             f"【规则引擎判定】（客观边界，overall_risk 不得低于它）\n"
             f"{json.dumps(rule, ensure_ascii=False, indent=1)}\n\n"
+            f"{memory_block}\n\n"
             f"【种子检索条文】（已自动检索，可直接引用；不足以支撑判定时调用 search_clauses 补充，"
             f"最多 {max_rounds} 轮；证据足够后不再调用工具）\n"
             f"{fmt_clauses(list(retrieved))}\n\n"
@@ -380,6 +391,48 @@ def build_query(scene: dict) -> str:
     return " ".join(parts)
 
 
+def build_memory_context(scene: dict, task_id: str | None = None,
+                        current_risk: str | None = None) -> tuple[str, dict]:
+    """把人工验收案例转成提示词中的对照材料。
+
+    历史案例只描述过去的人工结论和适用条件；在线场景 JSON 与规则引擎
+    仍是当前事实和风险下界。模型必须先找差异，再决定是否把历史建议当作参考。
+    """
+    summary = scene.get("scene", {}) if isinstance(scene.get("scene"), dict) else {}
+    work = str(summary.get("dominant_state") or "")
+    site = str(summary.get("site_type") or "")
+    cases = search_cases(build_query(scene), work_type=work, site_type=site,
+                         limit=3, exclude_task_id=task_id)
+    current = None
+    guidance = summarize_memory_guidance(cases, current_risk)
+    if not cases:
+        return "【历史验收记忆】无可用的已验收同类案例。", {"count": 0, "guidance": guidance}
+    lines = ["【历史验收记忆】以下是相似作业的人工验收结果，仅作对照，不是当前事实："]
+    for i, item in enumerate(cases, 1):
+        try:
+            facts = json.loads(item.get("facts_json") or "{}")
+        except (TypeError, json.JSONDecodeError):
+            facts = {}
+        lines.append(json.dumps({
+            "case": i,
+            "memory_id": item.get("memory_id"),
+            "work_type": item.get("work_type"),
+            "site_type": item.get("site_type"),
+            "human_risk": item.get("human_risk"),
+            "human_disposition": item.get("human_disposition"),
+            "error_type": item.get("error_type"),
+            "notes": item.get("notes"),
+            "risk_facts": facts,
+            "matched_terms": item.get("matched_terms", []),
+        }, ensure_ascii=False))
+    lines.append("【记忆建议】\n" + json.dumps(guidance, ensure_ascii=False))
+    lines.append("历史案例使用规则：先比较当前设备状态、人员危险区关系、" 
+                 "防护事实与历史案例的差异；只有关键条件一致时才能作为建议。"
+                 "历史低风险结论不得覆盖当前规则引擎的高风险下界。")
+    return "\n".join(lines), {"count": len(cases), "guidance": guidance,
+                                "memory_ids": [x.get("memory_id") for x in cases]}
+
+
 def fmt_clauses(hits):
     lines = []
     for h in hits:
@@ -440,6 +493,8 @@ def run(args):
     prior_block = f"【作业类型记忆】（统计先验，仅辅助判断）\n{prior}\n\n" if prior else ""
     for ts, sc in todo.items():
         rule = evaluate_risk(sc)
+        memory_block, memory_meta = build_memory_context(
+            sc, task_id=ts, current_risk=rule.get("overall_risk"))
         rule_block = ("【规则引擎判定】（基于场景 JSON 三要素的确定性输出，属客观边界：\n"
                       "你的 overall_risk 不得低于其中的 overall_risk；如需上调必须引用场景 JSON 中的事实；"
                       "drivers 是已触发的规则，可直接作为警示依据引用）\n"
@@ -450,13 +505,14 @@ def run(args):
             hits = []
             user_text = (f"【场景 JSON】\n{json.dumps(sc, ensure_ascii=False, indent=2)}\n\n"
                          f"{rule_block}\n\n"
+                         f"{memory_block}\n\n"
                          f"image_id: {ts}\n" + USER_SCHEMA)
             (prompts_dir / f"{ts}.txt").write_text(
-                "=== SYSTEM(tip) ===\n" + SYSTEM_TIP_PROMPT + "\n\n=== USER ===\n" + user_text,
+                "=== SYSTEM(tip) ===\n" + SYSTEM_TIP_PROMPT + MEMORY_INSTRUCTION + "\n\n=== USER ===\n" + user_text,
                 encoding="utf-8")
             response = gateway.complete(
                 model=model_id,
-                messages=[{"role": "system", "content": SYSTEM_TIP_PROMPT},
+                messages=[{"role": "system", "content": SYSTEM_TIP_PROMPT + MEMORY_INSTRUCTION},
                           {"role": "user", "content": user_text}],
                 response_format={"type": "json_object"})
             if response.status != "ok":
@@ -469,10 +525,11 @@ def run(args):
             # L4 自主检索：LLM 通过 search_clauses 工具自主决定补充检索
             final_content, hits, agentic_meta = agentic_judge(
                 sc, rule, gateway, model_id, rag, topk, stats,
+                memory_block=memory_block,
                 max_rounds=args.max_tool_rounds)
             raw = final_content
             (prompts_dir / f"{ts}.agentic.json").write_text(json.dumps(
-                {"rule_engine": rule, "agentic": agentic_meta}, ensure_ascii=False, indent=2),
+                {"rule_engine": rule, "memory": memory_meta, "agentic": agentic_meta}, ensure_ascii=False, indent=2),
                 encoding="utf-8")
         else:
             sys_prompt = SYSTEM_TIP_PROMPT if args.tip else SYSTEM_PROMPT
@@ -481,6 +538,7 @@ def run(args):
                          f"【候选条文】\n{fmt_clauses(hits)}\n\n"
                          f"{rule_block}\n\n"
                          f"{prior_block}"
+                         f"{memory_block}\n\n"
                          f"image_id: {ts}\n" + USER_SCHEMA)
             (prompts_dir / f"{ts}.txt").write_text(
                 "=== SYSTEM" + ("(tip)" if args.tip else "") + " ===\n" + sys_prompt
@@ -493,7 +551,7 @@ def run(args):
                 continue
             response = gateway.complete(
                 model=model_id,
-                messages=[{"role": "system", "content": sys_prompt},
+                messages=[{"role": "system", "content": sys_prompt + MEMORY_INSTRUCTION},
                           {"role": "user", "content": user_text}],
                 response_format={"type": "json_object"})
             if response.status != "ok":
@@ -530,10 +588,16 @@ def run(args):
                     continue
                 bad_clause.append(c)
         # 规则引擎下界：LLM 的 overall_risk 不得低于规则判定；LLM 上调则强制转人工
-        rule_risk = rule.get("overall_risk", "安全")
+        rule_risk = rule.get("overall_risk")
         llm_risk = obj.get("overall_risk") or "安全"
         risk_floor_applied = False
-        if RULE_SEVERITY.get(llm_risk, 0) < RULE_SEVERITY.get(rule_risk, 0):
+        manual_gate_applied = False
+        if rule_risk is None and rule.get("need_human_review"):
+            # 规则引擎明确判不了时，LLM 不能自行补出安全/低风险/高风险。
+            obj["overall_risk"] = None
+            obj["need_human_review"] = True
+            manual_gate_applied = True
+        elif RULE_SEVERITY.get(llm_risk, 0) < RULE_SEVERITY.get(rule_risk, 0):
             obj["overall_risk"] = rule_risk
             risk_floor_applied = True
         llm_escalated = RULE_SEVERITY.get(llm_risk, 0) > RULE_SEVERITY.get(rule_risk, 0)
@@ -545,7 +609,8 @@ def run(args):
                                         "drivers": rule.get("drivers", []),
                                         "evidence_gaps": rule.get("evidence_gaps", []),
                                         "need_human_review": rule.get("need_human_review", False),
-                                        "risk_floor_applied": risk_floor_applied,
+                        "risk_floor_applied": risk_floor_applied,
+                        "manual_gate_applied": manual_gate_applied,
                                         "llm_escalated": llm_escalated}}
         if llm_escalated or rule.get("need_human_review"):
             obj["need_human_review"] = True

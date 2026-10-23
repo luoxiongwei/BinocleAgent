@@ -4,7 +4,7 @@
 // （历史 bug：所有请求统一加 /api 导致任务接口 404，故按路径分流。）
 import { ref } from 'vue'
 
-const AGENT_PATHS = ['/tasks', '/health', '/inputs']
+const AGENT_PATHS = ['/tasks', '/health', '/inputs', '/qa', '/chat']
 
 const apiBase = () => (localStorage.getItem('gdyolo-api-base') || '/api').replace(/\/$/, '')
 
@@ -58,8 +58,26 @@ export const api = {
   createTask: (body) => request('/tasks', { method: 'POST', body: JSON.stringify(body) }),
   task: (id) => request(`/tasks/${enc(id)}`),
   taskEvents: (id) => request(`/tasks/${enc(id)}/events`),
+  retryTask: (id, body = {}) =>
+    request(`/tasks/${enc(id)}/retry`, { method: 'POST', body: JSON.stringify(body) }),
+  taskFeedback: (id) => request(`/tasks/${enc(id)}/feedback`),
+  submitFeedback: (id, body) =>
+    request(`/tasks/${enc(id)}/feedback`, { method: 'POST', body: JSON.stringify(body) }),
+  feedbackSummary: () => request('/feedback/summary'),
+  feedbackCandidates: () => request('/feedback/candidates'),
+  policyVersion: () => request('/policy/version'),
   submitReview: (id, body) =>
     request(`/tasks/${enc(id)}/review`, { method: 'POST', body: JSON.stringify(body) }),
+  submitAcceptance: (id, body) =>
+    request(`/tasks/${enc(id)}/acceptance`, { method: 'POST', body: JSON.stringify(body) }),
+  batches: () => request('/batches'),
+  batch: (id) => request(`/batches/${enc(id)}`),
+  qaAsk: (body) => request('/qa/ask', { method: 'POST', body: JSON.stringify(body) }),
+  chat: (body) => request('/chat', { method: 'POST', body: JSON.stringify(body) }),
+  chatTools: () => request('/chat/tools'),
+  qaSession: (id) => request(`/qa/sessions/${enc(id)}`),
+  qaSessions: (limit = 20) => request(`/qa/sessions?limit=${limit}`),
+  bindQaSession: (body) => request('/qa/sessions/bind', { method: 'POST', body: JSON.stringify(body) }),
 
   // —— 8010 只读验收控制台 ——
   consoleHealth: () => request('/api/health'),

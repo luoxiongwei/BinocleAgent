@@ -15,6 +15,7 @@ class GraphState(TypedDict, total=False):
     task_id: str
     pair_id: str
     run_dir: str                      # 本任务的产物目录（工具读写契约的根）
+    qa_context: dict[str, Any]        # 用户先前问答引用的规范条款（仅作上下文证据）
 
     # ---- 中间产物 ----
     quality: dict[str, Any]           # {passed, edge_align, threshold, hard_min, flag}
@@ -26,6 +27,7 @@ class GraphState(TypedDict, total=False):
     route: str                        # archive | manual | tip | full
     report: dict[str, Any]            # L3 警示/提示 JSON（单对）
     evidence_check: dict[str, Any]
+    case_memories: list[dict[str, Any]]  # 人工验收案例，仅作参考证据，不直接覆盖当前判定
 
     # ---- 处置 ----
     disposition: str                  # P1_auto_alert/P4_archive/TIP_optional/P3_manual_judge

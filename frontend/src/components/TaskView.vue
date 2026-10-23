@@ -10,6 +10,7 @@ import RiskTag from './RiskTag.vue'
 import { IconPlay, IconUpload, IconSearch, IconAlert, IconReview, IconCheck } from './icons.js'
 
 const emit = defineEmits(['notify', 'goto-review'])
+const props = defineProps({ qaSessionId: { type: String, default: '' } })
 
 const pairId = ref('pair04')
 const pairName = ref('')
@@ -24,6 +25,15 @@ const error = ref('')
 const uploadNext = ref(null)
 const resultAnchor = ref(null)
 const pipelineStarted = ref(false)
+const feedbackRating = ref('')
+const feedbackNotes = ref('')
+const feedbackBusy = ref(false)
+const feedbackSent = ref(false)
+const retryBusy = ref(false)
+const acceptanceVerdict = ref('')
+const acceptanceRisk = ref('')
+const acceptanceNotes = ref('')
+const acceptanceBusy = ref(false)
 let pollTimer = null
 let pollTaskId = ''
 
@@ -206,12 +216,16 @@ async function createTask() {
   error.value = ''
   result.value = null
   events.value = []
+  feedbackRating.value = ''
+  feedbackNotes.value = ''
+  feedbackSent.value = false
   pipelineStarted.value = true
   try {
     const canonical = canonicalPairId(pairId.value)
     const queued = await api.createTask({
       pair_id: canonical,
       task_id: customId.value.trim() || undefined,
+      qa_session_id: props.qaSessionId || undefined,
     })
     customId.value = queued.task_id
     emit('notify', `任务 ${queued.task_id} 已排队（图对 ${pairLabel(queued.pair_id)}）`, 'ok')
@@ -221,6 +235,57 @@ async function createTask() {
   } catch (err) {
     error.value = err.message
     emit('notify', `任务失败：${err.message}`, 'err')
+  }
+}
+
+async function submitFeedback() {
+  if (!result.value?.task_id || !feedbackRating.value || feedbackBusy.value) return
+  feedbackBusy.value = true
+  try {
+    await api.submitFeedback(result.value.task_id, {
+      rating: feedbackRating.value,
+      notes: feedbackNotes.value.trim() || undefined,
+    })
+    feedbackSent.value = true
+    emit('notify', '评价已记录，将用于后续离线评估', 'ok')
+  } catch (err) {
+    emit('notify', `评价提交失败：${err.message}`, 'err')
+  } finally {
+    feedbackBusy.value = false
+  }
+}
+
+async function submitAcceptance() {
+  if (!result.value?.task_id || !acceptanceVerdict.value || acceptanceBusy.value) return
+  acceptanceBusy.value = true
+  try {
+    result.value = await api.submitAcceptance(result.value.task_id, {
+      verdict: acceptanceVerdict.value,
+      risk_label: acceptanceVerdict.value === 'accept' ? undefined : acceptanceRisk.value || undefined,
+      notes: acceptanceNotes.value.trim() || undefined,
+    })
+    emit('notify', '人工验收已记录', 'ok')
+  } catch (err) {
+    emit('notify', `人工验收失败：${err.message}`, 'err')
+  } finally {
+    acceptanceBusy.value = false
+  }
+}
+
+async function retryCurrent() {
+  if (!result.value?.task_id || retryBusy.value) return
+  retryBusy.value = true
+  try {
+    const queued = await api.retryTask(result.value.task_id)
+    result.value = null
+    events.value = []
+    customId.value = queued.task_id
+    emit('notify', `已创建重试任务 ${queued.task_id}`, 'ok')
+    startPolling(queued.task_id)
+  } catch (err) {
+    emit('notify', `重试失败：${err.message}`, 'err')
+  } finally {
+    retryBusy.value = false
   }
 }
 
@@ -400,6 +465,9 @@ defineExpose({ loadTask })
         <button v-if="result.need_human_review && !result.human_verdict" class="btn btn-primary" @click="emit('goto-review', result.task_id)">
           <IconReview />去复核
         </button>
+        <button v-if="result.status === 'failed' && result.failure?.retryable !== false" class="btn btn-secondary" :disabled="retryBusy" @click="retryCurrent">
+          {{ retryBusy ? '重试排队中…' : '重试任务' }}
+        </button>
       </div>
       <div class="facts-grid">
         <div class="fact"><span>状态</span><b>{{ result.status }}</b></div>
@@ -408,9 +476,44 @@ defineExpose({ loadTask })
         <div class="fact"><span>工具调用</span><b>{{ result.tool_calls?.length || 0 }} 次</b></div>
       </div>
     </div>
+    <div v-if="result.failure" class="alert alert-error">
+      <IconAlert />失败原因：{{ result.failure.reason_code }} · 阶段：{{ result.failure.failed_stage }} · {{ result.failure.error }}（第 {{ result.attempt || 1 }} 次尝试）
+      <span v-if="result.failure.recovery_label" class="faint"> · 建议：{{ result.failure.recovery_label }}</span>
+    </div>
       </div>
     <!-- 安全日志文档：结论先行的正式交付形态 -->
     <SafetyLog :detail="result" />
+    <div v-if="['completed', 'failed'].includes(result.status)" class="panel feedback-panel">
+      <div class="panel-head"><span class="panel-title">结果评价</span><span class="faint text-small">帮助 Binocle 改进后续判断</span></div>
+      <div class="panel-body row row-wrap" style="align-items: end; gap: var(--sp-2)">
+        <button class="btn btn-secondary btn-sm" :class="{ active: feedbackRating === 'correct' }" :disabled="feedbackSent" @click="feedbackRating = 'correct'">判断正确</button>
+        <button class="btn btn-secondary btn-sm" :class="{ active: feedbackRating === 'incorrect' }" :disabled="feedbackSent" @click="feedbackRating = 'incorrect'">判断有误</button>
+        <button class="btn btn-secondary btn-sm" :class="{ active: feedbackRating === 'uncertain' }" :disabled="feedbackSent" @click="feedbackRating = 'uncertain'">暂不确定</button>
+        <input v-model="feedbackNotes" class="input feedback-notes" :disabled="feedbackSent" placeholder="可补充问题说明" />
+        <button class="btn btn-primary btn-sm" :disabled="!feedbackRating || feedbackBusy || feedbackSent" @click="submitFeedback">{{ feedbackSent ? '已记录' : (feedbackBusy ? '提交中…' : '提交评价') }}</button>
+      </div>
+    </div>
+    <div v-if="result.status === 'completed' && !result.acceptance" class="panel feedback-panel">
+      <div class="panel-head"><span class="panel-title">人工验收</span><span class="faint text-small">不覆盖原始 Agent 结果，仅记录验收结论</span></div>
+      <div class="panel-body row row-wrap" style="align-items: end; gap: var(--sp-2)">
+        <select v-model="acceptanceVerdict" class="input acceptance-select">
+          <option value="">选择验收结论</option>
+          <option value="accept">验收通过</option>
+          <option value="correct">纠正判级</option>
+          <option value="reject">驳回结果</option>
+        </select>
+        <select v-if="acceptanceVerdict && acceptanceVerdict !== 'accept'" v-model="acceptanceRisk" class="input acceptance-select">
+          <option value="">修正风险等级</option>
+          <option value="安全">安全</option>
+          <option value="低风险">低风险</option>
+          <option value="高风险">高风险</option>
+        </select>
+        <input v-model="acceptanceNotes" class="input feedback-notes" placeholder="可补充纠正原因" />
+        <button class="btn btn-primary btn-sm" :disabled="!acceptanceVerdict || (acceptanceVerdict !== 'accept' && !acceptanceRisk) || acceptanceBusy" @click="submitAcceptance">
+          {{ acceptanceBusy ? '记录中…' : '提交验收' }}
+        </button>
+      </div>
+    </div>
     <div class="panel">
         <div class="panel-head">
           <span class="panel-title">研判日志 · 逐阶段证据链</span>
@@ -428,3 +531,9 @@ defineExpose({ loadTask })
   <p v-if="idle" class="task-idle-hint">上传一对双光图像，自动完成配准融合、VLM / YOLO 双源检测、对账校验与规范条款判级，约 1–3 分钟产出安全日志</p>
   </div>
 </template>
+
+<style scoped>
+.feedback-panel .active { border-color: var(--accent); color: var(--accent); }
+.feedback-notes { min-width: 220px; flex: 1 1 260px; }
+.acceptance-select { min-width: 150px; }
+</style>

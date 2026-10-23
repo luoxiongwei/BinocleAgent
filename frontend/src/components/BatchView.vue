@@ -17,10 +17,13 @@ import { IconLayers, IconReview } from './icons.js'
 
 const props = defineProps({
   agentTasks: { type: Array, default: () => [] },
+  batches: { type: Array, default: () => [] },
   overview: { type: Object, default: () => ({}) }, // /overview：runs 含 rows + metrics
   pending: { type: Array, default: () => [] }, // 待审条目（日历圆点 + 历史日志第三类）
   focus: { type: Object, default: () => ({}) }, // 总览台跳转携带 { tab, run, task, date }
 })
+
+const latestBatch = computed(() => props.batches[0] || null)
 
 const emit = defineEmits(['notify', 'goto-review'])
 
@@ -243,6 +246,14 @@ async function openRunReport(run) {
 </script>
 
 <template>
+  <div v-if="latestBatch" class="panel latest-batch-summary">
+    <div class="panel-head"><IconLayers /><span class="panel-title">最新批次 · {{ latestBatch.batch_id }}</span><span class="grow" /><span class="faint text-small">{{ latestBatch.total }} 个任务</span></div>
+    <div class="panel-body batch-summary-row">
+      <span>已完成 {{ latestBatch.counts?.completed || 0 }}</span>
+      <span>执行中 {{ latestBatch.counts?.running || 0 }}</span>
+      <span>失败 {{ latestBatch.counts?.failed || 0 }}</span>
+    </div>
+  </div>
   <div class="archive-tabs" role="tablist">
     <button :class="['archive-tab', { on: tab === 'live' }]" role="tab" :aria-selected="tab === 'live'" @click="tab = 'live'">
       实时任务流 <span class="tab-count">{{ agentTasks.length }} 条</span>

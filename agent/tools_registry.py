@@ -28,6 +28,22 @@ PY = sys.executable
 _CODE_DEFAULT_TH = {"fusion_edge_align_min": 0.15, "fusion_edge_align_hard_min": 0.09}
 
 
+def _artifact_dir(run_dir: str | Path | None, name: str) -> Path:
+    """任务有 run_dir 时使用任务级产物目录，兼容无 run_dir 的旧 CLI。"""
+    return Path(run_dir) / name if _is_task_run(run_dir) else PROJECT / "results" / name
+
+
+def _artifact_file(run_dir: str | Path | None, name: str) -> Path:
+    return Path(run_dir) / name if _is_task_run(run_dir) else PROJECT / "results" / name
+
+
+def _is_task_run(run_dir: str | Path | None) -> bool:
+    if not run_dir:
+        return False
+    candidate = Path(run_dir)
+    return "graph_runs" in candidate.parts or (candidate / "source").is_dir()
+
+
 def _thresholds() -> tuple[dict[str, float], list[str]]:
     """融合 QC 阈值（`config/agent.yaml` thresholds 段）。
 
@@ -78,14 +94,15 @@ def fuse_qc(pair_id: str, run_dir: str = "") -> dict[str, Any]:
     from tools.image_registration import prepare_pair
     preparation: dict[str, Any] = {}
     try:
-        preparation = prepare_pair(pair_id, PROJECT)
+        preparation = prepare_pair(pair_id, PROJECT, run_dir or None,
+                                   (Path(run_dir) / "source") if run_dir else None)
     except FileNotFoundError:
         # 兼容已经生成的融合图：没有原始 RGB/IR 时仍可做 QC，不能假造配准成功。
         preparation = {"registration": {"method": "precomputed_fused"}}
     except Exception as exc:
         return {"status": "error", "error": f"输入标准化或配准失败: {exc}"}
-    qc_path = PROJECT / "results" / "fuse_qc.json"
-    fused = PROJECT / "results" / "fused" / f"{pair_id}.jpg"
+    qc_path = _artifact_file(run_dir, "fuse_qc.json")
+    fused = _artifact_dir(run_dir, "fused") / f"{pair_id}.jpg"
     if not fused.is_file():
         return {"status": "error", "error": f"融合图不存在: {fused}"}
     qc = load_json(qc_path) if qc_path.is_file() else {}
@@ -122,7 +139,9 @@ def prepare_pair_tool(pair_id: str, run_dir: str = "") -> dict[str, Any]:
     """独立调用 RGB/IR 标准化与 ECC 仿射配准工具。"""
     from tools.image_registration import prepare_pair
     try:
-        return {"status": "ok", "data": prepare_pair(pair_id, PROJECT)}
+        return {"status": "ok", "data": prepare_pair(
+            pair_id, PROJECT, run_dir or None,
+            (Path(run_dir) / "source") if run_dir else None)}
     except Exception as exc:
         return {"status": "error", "error": str(exc)}
 
@@ -131,8 +150,8 @@ def vlm_open_detect(pair_id: str, run_dir: str) -> dict[str, Any]:
     """VLM 先行开放检测：产出 l2_scene.json（含 equipment_state）。"""
     l2_dir = Path(run_dir) / "l2"
     cmd = [PY, str(PROJECT / "scripts" / "vlm_judge.py"), "--run", "--pair-id", pair_id,
-           "--fused-dir", str(PROJECT / "results" / "fused"),
-           "--panel-dir", str(PROJECT / "results" / "panels"),
+            "--fused-dir", str(_artifact_dir(run_dir, "fused")),
+            "--panel-dir", str(_artifact_dir(run_dir, "panels")),
            "--out", str(l2_dir)]
     res = _run_tool("vlm", cmd, Path(run_dir))
     l2_json = l2_dir / "l2_scene.json"
@@ -150,7 +169,7 @@ def yolo_detect(pair_id: str, run_dir: str) -> dict[str, Any]:
     run_dir = Path(run_dir)
     input_dir = run_dir / "input"
     input_dir.mkdir(parents=True, exist_ok=True)
-    fused = PROJECT / "results" / "fused" / f"{pair_id}.jpg"
+    fused = _artifact_dir(run_dir, "fused") / f"{pair_id}.jpg"
     shutil.copy2(fused, input_dir / fused.name)
     l1_dir = run_dir / "l1"
     cmd = [PY, str(PROJECT / "scripts" / "l1_smoke.py"), "--source", str(input_dir),
@@ -172,8 +191,8 @@ def reconcile(pair_id: str, run_dir: str) -> dict[str, Any]:
         return {"status": "error", "error": "对账输入缺失（l2/l1 JSON）"}
     cmd = [PY, str(PROJECT / "scripts" / "vlm_judge.py"), "--run", "--reconcile",
            "--pair-id", pair_id, "--scene-json", str(l2_json), "--yolo-det", str(l1_json),
-           "--fused-dir", str(PROJECT / "results" / "fused"),
-           "--panel-dir", str(PROJECT / "results" / "panels"), "--out", str(run_dir / "l2")]
+            "--fused-dir", str(_artifact_dir(run_dir, "fused")),
+            "--panel-dir", str(_artifact_dir(run_dir, "panels")), "--out", str(run_dir / "l2")]
     res = _run_tool("reconcile", cmd, run_dir)
     if res["status"] != "ok" or not l2_json.is_file():
         return {"status": "error", "error": res.get("error") or "对账失败"}
@@ -256,7 +275,7 @@ def yolo_recheck(pair_id: str, run_dir: str, conf: float = 0.15,
     run_dir = Path(run_dir)
     input_dir = run_dir / "input"
     input_dir.mkdir(parents=True, exist_ok=True)
-    fused = PROJECT / "results" / "fused" / f"{pair_id}.jpg"
+    fused = _artifact_dir(run_dir, "fused") / f"{pair_id}.jpg"
     if not fused.is_file():
         return {"status": "error", "error": f"融合图不存在: {fused}"}
     if not (input_dir / fused.name).is_file():
@@ -539,8 +558,8 @@ def recrop_verify(pair_id: str, run_dir: str, targets: list | None = None,
     out_dir = run_dir / "recrop"
     cmd = [PY, str(PROJECT / "scripts" / "vlm_judge.py"), "--recrop",
            "--pair-id", pair_id, "--scene-json", str(l2_json),
-           "--fused-dir", str(PROJECT / "results" / "fused"),
-           "--panel-dir", str(PROJECT / "results" / "panels"),
+            "--fused-dir", str(_artifact_dir(run_dir, "fused")),
+            "--panel-dir", str(_artifact_dir(run_dir, "panels")),
            "--out", str(out_dir)]
     if l1_json.is_file():
         cmd += ["--yolo-det", str(l1_json)]

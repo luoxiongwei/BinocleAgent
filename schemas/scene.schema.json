@@ -16,7 +16,10 @@
       "additionalProperties": false,
       "properties": {
         "lighting": {"enum": ["白天", "黄昏", "夜间"]},
-        "rgb_visibility": {"enum": ["清晰", "过暗", "过曝"]},
+        "rgb_visibility": {
+          "enum": ["清晰", "一般", "过暗", "过曝"],
+          "description": "一般为历史产物兼容值；新任务优先使用清晰/过暗/过曝"
+        },
         "ir_quality": {"enum": ["良好", "一般", "差"]},
         "dominant_state": {
           "type": "string",

@@ -1,11 +1,7 @@
-/* 门面与工作区的第二轮视觉收束 */
-.landing-copy h1.landing-slogan{font-size:clamp(52px,7vw,94px);line-height:.98;margin:15px 0 20px;letter-spacing:-.06em}
-.landing-copy h2{font-size:clamp(22px,3vw,38px);line-height:1.2;margin:0 0 18px;color:#f7f9fc;letter-spacing:-.03em}
-.landing-copy h2:after{content:"";display:block;width:72px;height:3px;background:#f59e0b;margin-top:18px;border-radius:2px}
-.landing-copy .landing-lead{max-width:620px}
-.side-nav .nav-item{background:var(--surface);border:1px solid var(--line);border-radius:9px;margin:5px 0;min-height:46px}
-.side-nav .nav-item:hover{background:var(--surface-2);border-color:var(--line-strong)}
-.side-nav .nav-item.active{background:var(--surface-2);border-color:var(--line-strong)}
+/* 门面与工作区的第二轮视觉收束（2026-10-23：落地页样式已全部迁至 landing.css） */
+.side-nav .nav-item{background:transparent;border:1px solid transparent;border-radius:9px;margin:3px 8px;min-height:46px}
+.side-nav .nav-item:hover{background:rgba(255,255,255,.04);border-color:var(--line)}
+.side-nav .nav-item.active{background:rgba(255,255,255,.055);border-color:var(--line);color:var(--text)}
 .side-services{margin-top:auto}
 .task-mini-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--line)}
 .task-mini-row>div{display:flex;align-items:baseline;gap:12px;min-width:0}.task-mini-row b{font-size:17px}.task-mini-row .eyebrow{color:var(--accent)}
@@ -22,11 +18,67 @@
 .chain,.chain-node,.chain-facts,.chain-detail,.clause-quote{min-width:0;max-width:100%;overflow-wrap:anywhere;word-break:break-word}
 .chain .tag-mono{display:inline-block;max-width:100%;white-space:normal;overflow-wrap:anywhere;word-break:break-word;vertical-align:top}
 .task-workspace{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:var(--sp-4) var(--sp-5)}
+/* 注：TaskView 内部自带 .task-workspace 卡片（tab 容器 .task-shell 只做布局，不加边框，避免双层框） */
 .task-workspace>.section-head{margin-top:var(--sp-4);margin-bottom:var(--sp-2);padding-bottom:var(--sp-2);border-bottom:1px solid var(--line)}
 .task-workspace>.section-head:first-child{margin-top:0}
 .task-workspace>.panel{margin-bottom:8px;background:transparent;border:0;border-radius:0;box-shadow:none}
 @media(min-width:801px){.task-workspace{max-width:1180px;margin:0 auto}.task-workspace .panel-body{padding-top:12px;padding-bottom:12px}}
-/* 待机态舞台（2026-10-18 用户要求）：待机时上传表单垂直居中，避免顶部孤岛+下方留白；
-   进入流水线/有结果后回顶锚定，面积让给事件流与结果。100vh 扣顶栏(实测95)+app-content 上下 padding(32+48) */
-.task-stage.is-idle{min-height:calc(100vh - 175px);display:flex;flex-direction:column;justify-content:center}
+/* 安全日志 Tab 容器（2026-10-23）：只负责布局与 Tab 栏，卡片由各 pane 自己提供。
+   垂直居中：内容短时（智能问答/待机上传）整组落在视口中心；内容超过一屏时自动从顶部续排，
+   min-height 只托底不限高，running 任务的长流水线不会被裁切。 */
+.task-shell{max-width:1180px;margin:0 auto;min-height:calc(100vh - 190px);display:flex;flex-direction:column;justify-content:center}
+/* 待机态舞台（2026-10-18 要求居中 → 2026-10-23 重构调整）：
+   对话工作区已占据首屏上半部，上传表单再按整屏高度居中会在两段之间留下大块死区，
+   故待机态改回自然流 + 上留白，上传区紧跟对话之后。 */
+.task-stage.is-idle{min-height:0;padding-top:0}
 .task-idle-hint{margin:var(--sp-4) auto 0;max-width:60ch;text-align:center;font-size:var(--fs-small);color:var(--text-faint);line-height:1.7}
+
+/* ============ 对话工作区：原生控件的主题收口（2026-10-23 重构）
+   ConversationWorkspace 里的 input/textarea/button 无全局类，浏览器默认样式在
+   近黑底上呈中灰块，与设计系统割裂。此处按 token 统一，不触碰组件逻辑。 ==== */
+.conversation-workspace input,
+.conversation-workspace textarea{
+  background:rgba(255,255,255,.03);
+  border:1px solid var(--line);
+  border-radius:9px;
+  color:var(--text);
+  font:inherit;
+  font-size:14px;
+  padding:10px 13px;
+  outline:none;
+  transition:border-color 180ms var(--ease-out),background 180ms var(--ease-out);
+}
+.conversation-workspace input:focus,
+.conversation-workspace textarea:focus{border-color:rgba(94,210,156,.55);background:rgba(94,210,156,.05)}
+.conversation-workspace input::placeholder,
+.conversation-workspace textarea::placeholder{color:var(--text-faint)}
+.conversation-workspace .new-session{
+  border:1px solid var(--line-strong);
+  border-radius:999px;
+  background:transparent;
+  color:var(--text-dim);
+  font:inherit;
+  font-size:12px;
+  cursor:pointer;
+  transition:color 180ms var(--ease-out),border-color 180ms var(--ease-out);
+}
+.conversation-workspace .new-session:hover{color:var(--accent);border-color:rgba(94,210,156,.5)}
+.conversation-workspace .composer button{
+  border:0;
+  border-radius:999px;
+  background:var(--accent);
+  color:#04120b;
+  font:inherit;
+  font-size:13px;
+  font-weight:700;
+  letter-spacing:.04em;
+  padding:11px 22px;
+  cursor:pointer;
+  transition:background 180ms var(--ease-out),opacity 180ms var(--ease-out);
+}
+.conversation-workspace .composer button:hover:not(:disabled){background:var(--accent-strong)}
+.conversation-workspace .composer button:disabled{opacity:.4;cursor:not-allowed}
+.conversation-workspace .empty-prompt{max-width:44ch;text-align:center;line-height:1.8;font-size:var(--fs-small)}
+/* 空会话不必占满 330px：给下方研判流水线留出首屏空间 */
+.conversation-workspace .conversation-body.empty{min-height:170px}
+
