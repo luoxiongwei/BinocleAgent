@@ -72,6 +72,7 @@
 | Node.js | ≥ 20.19 或 ≥ 22.12（仅 Vue 前端需要；零依赖控制台可跳过） |
 | 模型 API | OpenAI 兼容端点（默认 DeepSeek `api.deepseek.com`），key 自备 |
 | GPU | **不需要** |
+| 外网（可选） | 落地页背景影像走公网 HLS（`hls.js` 已随 `package.json` 安装）、字体走 Google Fonts、首次建 RAG 库需下载 BGE 模型；**内网/离线时自动降级为静态深绿底色与系统字体，功能不受影响** |
 
 ### 3.2 安装
 
@@ -101,7 +102,8 @@ Windows 一键三进程（任务服务 + 只读控制台 + Vue dev server）：
 scripts\start_debug_stack.bat
 ```
 
-也可以直接双击仓库根目录的 `启动Binocle安全日志Agent.bat`。启动器会自动探测可用
+也可以直接双击仓库根目录的 `启动Binocle安全日志Agent.bat`，停止用同目录的
+`关闭Binocle安全日志Agent.bat`。启动器会自动探测可用
 Python，等待 8000/8010/5173 三个服务健康后再返回；日志和 PID 记录在
 `results/debug_stack/`。常用管理命令：
 
