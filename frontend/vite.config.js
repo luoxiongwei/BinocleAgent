@@ -12,6 +12,8 @@ export default defineConfig({
       '/inputs': 'http://127.0.0.1:8000',
       '/qa': 'http://127.0.0.1:8000',
       '/chat': 'http://127.0.0.1:8000',
+      '/feedback': 'http://127.0.0.1:8000',
+      '/memory': 'http://127.0.0.1:8000',
     },
   },
 })

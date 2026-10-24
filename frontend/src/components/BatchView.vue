@@ -293,7 +293,7 @@ async function openRunReport(run) {
   <!-- ============ Tab 2：历史日志（两栏：当日产物 + 日志详情，排列同在线文档页） ============ -->
   <div v-else class="history-grid">
     <!-- 左：当日产物（日期头 = 隐藏式日历入口） -->
-    <div class="panel history-list">
+    <div class="panel history-list" :class="{ 'is-overlay': calOpen }">
       <div class="panel-head day-head">
         <div class="day-head-wrap">
           <button

@@ -2,6 +2,7 @@
 // 人工复核工作台：左队列 + 右证据链 + 人工结论回写
 import { computed, onMounted, ref, watch } from 'vue'
 import { api, dayKey, fmtDateTime, fmtDayHead, pairLabel } from '../api.js'
+import CalendarPicker from './CalendarPicker.vue'
 import SectionHead from './SectionHead.vue'
 import EmptyState from './EmptyState.vue'
 import ImageTriptych from './ImageTriptych.vue'
@@ -144,6 +145,24 @@ const groups = computed(() => {
 // 默认选中最新一组的第一项（队列文件按时间追加，直接取 [0] 会打开最旧任务）
 const newestItem = computed(() => groups.value[0]?.items?.[0] || null)
 
+// 隐藏式日历（2026-10-24，与档案管理同一套交互）：日期头点开月历挑日，
+// 选中后队列只保留当天条目；当天没有待审任务时明确提示「该日无档案记录」。
+const calOpen = ref(false)
+const pickedDate = ref('')
+
+// CalendarPicker 需要 buildTimeline 形状；复核台只喂 reviews 一类
+const days = computed(() =>
+  groups.value.map((g) => ({ date: g.key, runs: [], tasks: [], reviews: g.items })),
+)
+const visibleGroups = computed(() =>
+  pickedDate.value ? groups.value.filter((g) => g.key === pickedDate.value) : groups.value,
+)
+const pickedCount = computed(() => visibleGroups.value.reduce((n, g) => n + g.items.length, 0))
+
+watch(pickedDate, () => {
+  calOpen.value = false
+})
+
 async function submit() {
   if (!task.value?.task_id) return
   submitting.value = true
@@ -180,10 +199,27 @@ const facts = computed(() => {
 
   <div class="review-desk">
     <!-- 左：待审队列 -->
-    <div class="panel">
+    <div class="panel" :class="{ 'is-overlay': calOpen }">
       <div class="panel-head">
         <IconReview />
         <span class="panel-title">待审队列 · {{ pending.length }}</span>
+        <span class="grow" />
+        <div class="day-head-wrap">
+          <button
+            class="day-head-btn"
+            :class="{ on: calOpen }"
+            title="点击打开日历，按日期查看待审任务"
+            @click="calOpen = !calOpen"
+            @keydown.esc="calOpen = false"
+          >
+            <span class="day-label">{{ pickedDate ? fmtDayHead(pickedDate) : '全部日期' }}</span>
+            <span class="day-count">{{ pickedCount }} 项</span>
+            <span class="day-caret">{{ calOpen ? '▴' : '▾' }}</span>
+          </button>
+          <div v-if="calOpen" class="cal-drop">
+            <CalendarPicker :days="days" v-model="pickedDate" />
+          </div>
+        </div>
       </div>
       <div class="panel-body" style="padding: 10px var(--sp-4)">
         <div class="row" style="gap: 8px">
@@ -197,7 +233,7 @@ const facts = computed(() => {
         </div>
       </div>
       <div class="queue-list">
-        <template v-for="g in groups" :key="g.key">
+        <template v-for="g in visibleGroups" :key="g.key">
           <div class="queue-group-head">
             <span>{{ fmtDayHead(g.key) }}</span>
             <span class="grow" />
@@ -226,9 +262,18 @@ const facts = computed(() => {
           </button>
         </template>
         <EmptyState
-          v-if="!pending.length"
+          v-if="pickedDate && !pickedCount"
+          :title="'该日无档案记录'"
+          :hint="`${fmtDayHead(pickedDate)} 没有转人工任务归档。可在日历上换一天，或再点一次该日期清除筛选。`"
+        >
+          <button class="btn btn-ghost btn-sm" style="margin-top: 8px" @click="pickedDate = ''">
+            查看全部日期
+          </button>
+        </EmptyState>
+        <EmptyState
+          v-else-if="!pending.length"
           title="队列已清空"
-          hint="所有转人工任务均已完成裁定。系统按二值口径运行：无法自动定级的任务一律转人工，不会蒙混归档。"
+          hint="所有转人工任务均已完成裁定。系统按二值口径运行：无法自动定级的任务一律推人工，不会蒙混归档。"
         />
       </div>
     </div>
@@ -370,4 +415,44 @@ const facts = computed(() => {
       </div></div>
     </div>
   </div>
+  <div v-if="calOpen" class="cal-backdrop" @click="calOpen = false" />
 </template>
+
+<style scoped>
+/* 日期头 = 隐藏式日历入口（与档案管理同一套交互，2026-10-24） */
+.day-head-wrap { position: relative; flex: none; }
+.day-head-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface-2);
+  color: var(--text-dim);
+  font: inherit;
+  font-size: var(--fs-small);
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease-out), color var(--dur) var(--ease-out);
+}
+.day-head-btn:hover { border-color: var(--line-strong); color: var(--text); }
+.day-head-btn.on { border-color: var(--accent); color: var(--accent); }
+.day-label { font-weight: 600; }
+.day-count { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-faint); }
+.day-caret { font-size: 11px; color: var(--text-faint); }
+.day-head-btn.on .day-caret { color: var(--accent); }
+
+.cal-drop {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 40;
+  width: 300px;
+  max-width: calc(100vw - 60px);
+  filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.45));
+  animation: cal-in var(--dur) var(--ease-out);
+}
+@keyframes cal-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.cal-backdrop { position: fixed; inset: 0; z-index: 30; }
+</style>
+

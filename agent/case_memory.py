@@ -107,6 +107,13 @@ def record_acceptance(record: dict[str, Any], state: dict[str, Any]) -> str:
     return memory_id
 
 
+def count_cases() -> int:
+    """已沉淀（approved）案例总数，供经验记忆面板展示。"""
+    with _LOCK:
+        conn = _connect()
+        return int(conn.execute("SELECT COUNT(*) FROM case_memories WHERE approved = 1").fetchone()[0])
+
+
 def search_cases(query: str = "", work_type: str | None = None,
                  site_type: str | None = None, limit: int = 5,
                  exclude_task_id: str | None = None) -> list[dict[str, Any]]:

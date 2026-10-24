@@ -358,7 +358,10 @@ button:focus:not(:focus-visible) { outline: none; }
 
 /* ============ 面板（分区而非万物皆卡片） ============ */
 .panel {
-  /* 毛玻璃：背景纤维经模糊后透出，正文仍压在独立图层上保持清晰 */
+  /* 毛玻璃：背景纤维经模糊后透出，正文仍压在独立图层上保持清晰
+     ⚠ backdrop-filter 会创建层叠上下文：面板内的日历浮层（z-index 40）会被限制在面板内部，
+     因此页面级遮罩（.cal-backdrop z-index 30）反而盖住面板 → 日历无法点击。
+     解法：日历打开时给宿主面板加 .is-overlay 抬到遮罩之上。 */
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.012)),
     rgba(12, 18, 16, 0.63);
@@ -368,6 +371,8 @@ button:focus:not(:focus-visible) { outline: none; }
   border-radius: 12px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
+
+.panel.is-overlay { position: relative; z-index: 50; }
 
 .panel-head {
   display: flex;

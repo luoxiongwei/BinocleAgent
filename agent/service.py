@@ -1171,9 +1171,9 @@ def policy_version() -> dict[str, Any]:
 def search_case_memories(q: str = "", work_type: str | None = None,
                          site_type: str | None = None, limit: int = 5) -> dict[str, Any]:
     """检索人工验收案例；仅返回可信记忆，不改变当前任务判定。"""
-    from agent.case_memory import search_cases
+    from agent.case_memory import count_cases, search_cases
     cases = search_cases(q, work_type=work_type, site_type=site_type, limit=limit)
-    return {"cases": cases, "count": len(cases), "mode": "reference_only"}
+    return {"cases": cases, "count": len(cases), "total": count_cases(), "mode": "reference_only"}
 
 
 def _batch_summaries() -> dict[str, dict[str, Any]]:

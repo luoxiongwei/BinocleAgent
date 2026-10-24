@@ -2,7 +2,7 @@
 // 工作总览（原「监督台」，2026-10-17 IA 重构改名）：KPI + 处置分布 + 服务状态 + 最近任务 + 人工归档
 // 2026-10-19：移除「验收批次」KPI 与「历史验收批次」面板——验收批次以 30 对金标集为前提，
 // 交付给用户的新图对没有专家标注，该概念对受众恒为 0 且不可达；批次能力保留在档案管理与 CLI（agent.run_all）。
-import { computed } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { api, dispositionOf, fmtDateTime, pairLabel } from '../api.js'
 import SectionHead from './SectionHead.vue'
 import KpiCard from './KpiCard.vue'
@@ -54,6 +54,47 @@ const dist = computed(() => {
 const recentTasks = computed(() =>
   [...agentRows.value].sort((a, b) => String(b.updated).localeCompare(String(a.updated))).slice(0, 8),
 )
+
+// ---- 经验记忆（反馈汇总 + 验收案例）----
+// 数据全部来自 8000：/feedback/summary、/feedback/candidates、/memory/cases
+const memory = ref({ summary: null, candidates: [], cases: [], total: 0, error: '' })
+const memoryBusy = ref(false)
+
+const VERDICT_LABEL = { accept: '验收通过', correct: '纠正判级', reject: '驳回结果' }
+const verdictLabel = (v) => VERDICT_LABEL[v] || '已复核'
+const accuracyText = computed(() => {
+  const value = memory.value.summary?.accuracy_on_judged
+  return typeof value === 'number' ? `${Math.round(value * 100)}%` : '—'
+})
+
+async function loadMemory() {
+  if (memoryBusy.value) return
+  memoryBusy.value = true
+  const next = { summary: null, candidates: [], cases: [], total: 0, error: '' }
+  try {
+    next.summary = await api.feedbackSummary()
+  } catch (err) {
+    next.error = err?.message || '反馈汇总不可用'
+  }
+  try {
+    next.candidates = (await api.feedbackCandidates()).candidates || []
+  } catch {
+    /* 候选接口失败不影响主面板 */
+  }
+  try {
+    const result = await api.memoryCases('', 4)
+    next.cases = result.cases || []
+    next.total = typeof result.total === 'number' ? result.total : next.cases.length
+  } catch {
+    /* 案例检索失败时保留空列表 */
+  }
+  memory.value = next
+  memoryBusy.value = false
+}
+
+onMounted(loadMemory)
+// 研判任务增减（跑完一单可能立即产生新反馈/验收）时刷新
+watch(() => props.agentTasks.length, loadMemory)
 
 const apiBase = computed({
   get: () => api.getBase(),
@@ -122,6 +163,68 @@ function saveBase() {
     </div>
   </div>
 
+  <!-- 经验记忆：人工评价与验收沉淀，区别于复核台（逐条待办）与档案管理（历史归档） -->
+  <SectionHead
+    eyebrow="EXPERIENCE MEMORY"
+    title="经验记忆"
+    note="人工反馈与验收沉淀的案例；只作检索参考，不会改写线上判级"
+  >
+    <button class="btn btn-ghost btn-sm" :disabled="memoryBusy" @click="loadMemory">
+      {{ memoryBusy ? '读取中…' : '刷新记忆' }}
+    </button>
+  </SectionHead>
+  <div class="panel"><div class="panel-body stack stack-4">
+    <div class="mem-stats">
+      <div class="mem-stat">
+        <span>累计反馈</span>
+        <b class="mono">{{ memory.summary?.total ?? 0 }}</b>
+        <em v-if="!memory.summary?.total" class="faint">尚未提交评价</em>
+      </div>
+      <div class="mem-stat">
+        <span>判定准确率</span>
+        <b class="mono">{{ accuracyText }}</b>
+        <em class="faint">仅统计「正确 / 有误」</em>
+      </div>
+      <div class="mem-stat">
+        <span>已沉淀案例</span>
+        <b class="mono">{{ memory.total }}</b>
+        <em class="faint">人工验收后写入</em>
+      </div>
+      <div class="mem-stat">
+        <span>校准候选</span>
+        <b class="mono" :class="memory.candidates.length ? 'text-warn' : ''">{{ memory.candidates.length }}</b>
+        <em class="faint">同类错误 ≥3 条</em>
+      </div>
+    </div>
+
+    <div v-if="memory.cases.length" class="mem-list">
+      <div v-for="c in memory.cases" :key="c.memory_id" class="mem-item">
+        <div class="mem-main">
+          <span class="mem-title">
+            {{ c.work_type || '未标注作业' }}<template v-if="c.site_type"> · {{ c.site_type }}</template>
+
+
+          </span>
+          <span class="mem-meta">{{ fmtDateTime(c.created_at) }} · {{ c.task_id }}</span>
+        </div>
+        <div class="mem-tags">
+          <span class="mem-shift mono">{{ c.agent_risk || '—' }} → {{ c.human_risk || c.agent_risk || '—' }}</span>
+          <span class="mem-verdict" :class="`is-${c.verdict || 'reviewed'}`">{{ verdictLabel(c.verdict) }}</span>
+        </div>
+      </div>
+    </div>
+    <EmptyState
+      v-else
+      title="还没有沉淀的案例"
+      hint="在安全日志结果区提交「结果评价」或「人工验收」后，案例会进入这里，后续同类作业可检索参考"
+    />
+
+    <p v-if="memory.candidates.length" class="mem-hint">
+      有 <b>{{ memory.candidates.length }}</b> 组同类错误达到 3 条门槛，可进入离线校准
+      <span class="faint">（learning_mode = offline_review_only，不会自动改判级）</span>
+    </p>
+  </div></div>
+
   <!-- 最近研判任务（在线 Agent 实时数据） -->
   <SectionHead
     eyebrow="LIVE TASKS"
@@ -185,3 +288,55 @@ function saveBase() {
     <EmptyState v-else title="暂无归档" hint="转人工且已完成回写的任务会出现在这里" />
   </div>
 </template>
+
+<style scoped>
+.mem-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+.mem-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+}
+.mem-stat > span { font-size: var(--fs-micro); letter-spacing: 0.1em; color: var(--text-dim); }
+.mem-stat > b { font-size: 26px; font-weight: 700; line-height: 1.1; }
+.mem-stat > em { font-size: var(--fs-micro); font-style: normal; }
+
+.mem-list { display: flex; flex-direction: column; gap: 2px; }
+.mem-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-2);
+  border-bottom: 1px dashed var(--line);
+}
+.mem-item:last-child { border-bottom: 0; }
+.mem-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.mem-title { font-size: var(--fs-small); font-weight: 600; color: var(--text); }
+.mem-meta { font-size: var(--fs-micro); color: var(--text-dim); }
+.mem-tags { display: flex; align-items: center; gap: var(--sp-2); flex: none; }
+.mem-shift { font-size: var(--fs-micro); color: var(--text-dim); }
+.mem-verdict {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: var(--fs-micro);
+  border: 1px solid var(--line-strong);
+  color: var(--text-dim);
+}
+.mem-verdict.is-accept { border-color: rgba(94, 210, 156, 0.45); color: var(--safe); }
+.mem-verdict.is-correct { border-color: rgba(233, 181, 92, 0.45); color: var(--warn); }
+.mem-verdict.is-reject { border-color: rgba(244, 115, 106, 0.45); color: var(--danger); }
+.mem-hint { font-size: var(--fs-micro); color: var(--text-dim); }
+
+@media (max-width: 900px) {
+  .mem-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+</style>
+

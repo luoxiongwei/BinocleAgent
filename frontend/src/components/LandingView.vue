@@ -1,7 +1,7 @@
 <script setup>
 // 落地页 · 夜视监视器 Hero（2026-10-23 重构）
 // 背景影像走 Mux HLS；离线环境自动退回静态深绿辉光底，不影响进入工作区。
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   IconArrowRight,
   IconChat,
@@ -34,8 +34,10 @@ const FEATURES = [
 
 const videoEl = ref(null)
 const mediaOn = ref(false)
-// 特效时序：影像先出（playing 或 900ms 超时）→ 文案/辉光 → 粒子 → 能力卡
+// 特效时序（严格分层）：影像毛玻璃 → 文案/辉光 → 粒子 → 能力卡
+// 粒子必须晚于背景，否则出现「黑底上先冒出一团光晕」的破相
 const heroReady = ref(false)
+const swarmOn = ref(false)
 const menuOpen = ref(false)
 // 蚁群粒子：按视口宽度降载（移动端 GPU 弱，粒子数减半再减）
 const swarmCount = ref(520)
@@ -46,12 +48,13 @@ function syncSwarm() {
 let hls = null
 
 let readyTimer = 0
+let swarmTimer = 0
 
 onMounted(async () => {
   syncSwarm()
   window.addEventListener('resize', syncSwarm)
   // 影像拿不到首帧（离线/被墙）时不拖住整页：900ms 后照常进场
-  readyTimer = window.setTimeout(() => (heroReady.value = true), 900)
+  readyTimer = window.setTimeout(() => (heroReady.value = true), 2400)
   const video = videoEl.value
   if (!video) {
     heroReady.value = true
@@ -69,7 +72,11 @@ onMounted(async () => {
       hls.loadSource(HLS_SRC)
       hls.attachMedia(video)
       hls.on(Hls.Events.ERROR, (_evt, data) => {
-        if (data?.fatal) mediaOn.value = false
+        // 致命错误（离线/被墙）：直接认定背景为降级底盘，不必再等兜底计时
+        if (data?.fatal) {
+          mediaOn.value = false
+          heroReady.value = true
+        }
       })
     }
     video.addEventListener(
@@ -88,8 +95,14 @@ onMounted(async () => {
   }
 })
 
+watch(heroReady, (ready) => {
+  if (!ready) return
+  swarmTimer = window.setTimeout(() => (swarmOn.value = true), 320)
+})
+
 onBeforeUnmount(() => {
   window.clearTimeout(readyTimer)
+  window.clearTimeout(swarmTimer)
   window.removeEventListener('resize', syncSwarm)
   hls?.destroy()
   hls = null
@@ -124,7 +137,7 @@ function go(key) {
         :depth="0.8"
         idle="roam"
         click-effect="burst"
-        :enabled="heroReady"
+        :enabled="swarmOn"
       />
     </div>
 

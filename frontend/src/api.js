@@ -4,7 +4,7 @@
 // （历史 bug：所有请求统一加 /api 导致任务接口 404，故按路径分流。）
 import { ref } from 'vue'
 
-const AGENT_PATHS = ['/tasks', '/health', '/inputs', '/qa', '/chat']
+const AGENT_PATHS = ['/tasks', '/health', '/inputs', '/qa', '/chat', '/feedback', '/memory']
 
 const apiBase = () => (localStorage.getItem('gdyolo-api-base') || '/api').replace(/\/$/, '')
 
@@ -65,6 +65,7 @@ export const api = {
     request(`/tasks/${enc(id)}/feedback`, { method: 'POST', body: JSON.stringify(body) }),
   feedbackSummary: () => request('/feedback/summary'),
   feedbackCandidates: () => request('/feedback/candidates'),
+  memoryCases: (q = '', limit = 5) => request(`/memory/cases?q=${encodeURIComponent(q)}&limit=${limit}`),
   policyVersion: () => request('/policy/version'),
   submitReview: (id, body) =>
     request(`/tasks/${enc(id)}/review`, { method: 'POST', body: JSON.stringify(body) }),
